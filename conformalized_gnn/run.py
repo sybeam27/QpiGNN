@@ -89,25 +89,25 @@ if args.bnn:
 if args.wandb:
     wandb.init(project='ConformalGNN_' + args.dataset + '_' + args.model, name=name, config = args)
  
-if args.dataset_name == 'basic':
-    graph_data = generate_graph_data(num_nodes=args.num_nodes)
-elif args.dataset_name in ('gaussian', 'uniform', 'outlier', 'edge'):
-    graph_data = generate_noisy_graph_data(num_nodes=args.num_nodes, noise_type=args.dataset_name, noise_level=args.noise_level)
-elif args.dataset_name in ('education', 'election', 'income', 'unemployment'):
-    graph_data = load_county_graph_data(args.dataset_name, 2012)
-elif args.dataset_name in ('DE', 'ENGB', 'ES', 'FR', 'PTBR', 'RU'):
-    graph_data = load_twitch_graph_data(args.dataset_name)
-elif args.dataset_name in ('chameleon', 'crocodile', 'squirrel'):
-    graph_data = load_wiki_graph_data(args.dataset_name)
-elif args.dataset_name in ('Anaheim', 'ChicagoSketch'):
-    graph_data = load_trans_graph_data(args.dataset_name)
-elif args.dataset_name == 'BA':
-    graph_data = create_ba_graph_pyg(n=args.num_nodes)
-elif args.dataset_name == 'ER':
-    graph_data = create_er_graph_pyg(n=args.num_nodes)
-elif args.dataset_name == 'grid':
+if args.dataset == 'basic':
+    graph_data = generate_graph_data(num_nodes=args.nodes)
+elif args.dataset in ('gaussian', 'uniform', 'outlier', 'edge'):
+    graph_data = generate_noisy_graph_data(num_nodes=args.nodes, noise_type=args.dataset, noise_level=args.noise)
+elif args.dataset in ('education', 'election', 'income', 'unemployment'):
+    graph_data = load_county_graph_data(args.dataset, 2012)
+elif args.dataset in ('DE', 'ENGB', 'ES', 'FR', 'PTBR', 'RU'):
+    graph_data = load_twitch_graph_data(args.dataset)
+elif args.dataset in ('chameleon', 'crocodile', 'squirrel'):
+    graph_data = load_wiki_graph_data(args.dataset)
+elif args.dataset in ('Anaheim', 'ChicagoSketch'):
+    graph_data = load_trans_graph_data(args.dataset)
+elif args.dataset == 'BA':
+    graph_data = create_ba_graph_pyg(n=args.nodes)
+elif args.dataset == 'ER':
+    graph_data = create_er_graph_pyg(n=args.nodes)
+elif args.dataset == 'grid':
     graph_data = create_grid_graph_pyg()
-elif args.dataset_name == 'tree':
+elif args.dataset == 'tree':
     graph_data = create_tree_graph_pyg()
 
 def gaussian_nll_loss(mean, log_var, y_true):
@@ -312,13 +312,6 @@ def main(args):
                     test_acc = tmp_test_calib_acc
                     best_pred = pred
                 
-                if args.quantile:
-                    if args.verbose:
-                        log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Calib_Test=tmp_test_calib_acc, upper=upper, lower=lower, mse=mse)
-                else:
-                    if args.verbose:
-                        log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Calib_Test=tmp_test_calib_acc)
-
             # torch.save(best_model, model_checkpoint)
             pred = best_pred
 

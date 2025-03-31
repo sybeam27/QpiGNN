@@ -193,15 +193,11 @@ def load_county_graph_data(prediction: str, year: int):
     unique_edges = torch.unique(sorted_edges, dim=1)  # 고유 엣지만 유지
     pyg_data.edge_index = unique_edges  # 중복 제거된 edge_index 적용
 
-<<<<<<< HEAD
     feats_array = np.array(feats)  # 리스트를 하나의 ndarray로 합치기
     pyg_data.x = torch.tensor(feats_array, dtype=torch.float)
     
     # for i, f in enumerate(feats):
         # print(f"Index {i}, shape: {f.shape}")
-=======
-    pyg_data.x = torch.tensor(feats, dtype=torch.float)
->>>>>>> cc00178c249c6e8251fa1c42c9c428f114d0af43
 
     pyg_data.y = torch.tensor(labels, dtype=torch.float).view(-1, 1)
 
@@ -304,12 +300,8 @@ def load_trans_graph_data(city: str):
     unique_edges = torch.unique(sorted_edges, dim=1)  # 고유 엣지만 유지
     pyg_data.edge_index = unique_edges  # 중복 제거된 edge_index 적용
 
-<<<<<<< HEAD
     feats_array = np.array(feats)  # 리스트를 하나의 ndarray로 합치기
     pyg_data.x = torch.tensor(feats_array, dtype=torch.float)
-=======
-    pyg_data.x = torch.tensor(feats, dtype=torch.float)
->>>>>>> cc00178c249c6e8251fa1c42c9c428f114d0af43
 
     pyg_data.y = torch.tensor(labels, dtype=torch.float).view(-1, 1)
 
@@ -506,7 +498,6 @@ def split_graph_data(graph_data, test_ratio=0.2):
 
     return train_data, test_data
 
-<<<<<<< HEAD
 def split_cp_graph_data(train_data, cali_ratio=0.2):
     cp_train_data, calibration_data = split_graph_data(train_data)
     num_train = train_data.x.shape[0]
@@ -555,8 +546,6 @@ def split_cp_graph_data(train_data, cali_ratio=0.2):
     
     return cp_train_data, calibration_data
     
-=======
->>>>>>> cc00178c249c6e8251fa1c42c9c428f114d0af43
 def augment_features(x, tau):
     if isinstance(tau, float):  # tau가 float이면 변환
         tau = torch.tensor([tau])
@@ -573,7 +562,6 @@ def coverage_width(y_true, y_low, y_upper):
     return coverage, width
     
 def evaluate_model_performance(preds_low, preds_upper, targets, target=0.9):
-<<<<<<< HEAD
     # PICP (Prediction Interval Coverage Probability): 커버리지 계산
     picp = np.mean((targets >= preds_low) & (targets <= preds_upper))
     
@@ -620,36 +608,6 @@ def evaluate_model_performance(preds_low, preds_upper, targets, target=0.9):
         "MPE": mpe,
         "Sharpness": sharpness,
         "WS": winkler
-=======
-    coverage = np.mean((targets >= preds_low) & (targets <= preds_upper))
-    
-    interval_width = np.mean(preds_upper - preds_low)
-    normalized_interval_width = interval_width / (np.max(targets) - np.min(targets))
-    
-    median_pred = (preds_low + preds_upper) / 2    # 신뢰구간 중앙값
-    mpe = np.mean(np.abs(median_pred - targets)) # 예측 구간 중심이 실제값과 얼마나 가까운지
-    
-    sharpness = np.mean(np.square(preds_upper - preds_low)) # 예측 구간의 날카로움: 제곱을 사용해 큰 폭일수록 더 강한 패널티
-    
-    alpha = 0.5
-    penalties = np.where(targets < preds_low, preds_low - targets, np.where(targets > preds_upper, targets - preds_upper, 0))  
-    winkler = np.mean(interval_width + 2 * alpha * penalties) # 신뢰구간이 실제값을 포함하지 않으면 패널티 적용
-    
-    MCT = interval_width * abs(coverage - target)     # 조정된 Coverage Tradeoff 지표 (MCT)
-
-    print(f"예측 관련 - CR ⬆: {coverage:.4f}, MPE ⬇: {mpe:.4f}")
-    print(f"구간 관련 - IW ⬇: {interval_width:.4f}, Sharpness ⬇: {sharpness:.4f}, WS ⬇: {winkler:.4f}")
-    print(f"종합 - MCT ⬇: {MCT:.4f}")
-    
-    return {
-        "Coverage Rate (CR)": np.round(coverage, 4),
-        "Interval Width (IW)": np.round(interval_width, 4),
-        "Normalized IW": np.round(normalized_interval_width, 4),
-        "Mean Prediction Error (MPE)": np.round(mpe, 4),
-        "Sharpness": np.round(sharpness, 4),
-        "Winkler Score (WS)": np.round(winkler, 4),
-        "MisCoverage Trade-off (MCT)": np.round(MCT, 4)
->>>>>>> cc00178c249c6e8251fa1c42c9c428f114d0af43
     }
     
 def add_node_features_and_target(data: Data):
@@ -672,22 +630,14 @@ def add_node_features_and_target(data: Data):
     return data
 
 # 1. Barabási–Albert Graph (BA Graph)
-<<<<<<< HEAD
 def create_ba_graph_pyg(n=1000, m=3):
-=======
-def create_ba_graph_pyg(n=500, m=3):
->>>>>>> cc00178c249c6e8251fa1c42c9c428f114d0af43
     g_nx = nx.barabasi_albert_graph(n, m)
     data = from_networkx(g_nx)
     data = add_node_features_and_target(data)
     return data
 
 # 2. Erdős–Rényi Graph (ER Graph)
-<<<<<<< HEAD
 def create_er_graph_pyg(n=1000, p=0.01):
-=======
-def create_er_graph_pyg(n=500, p=0.01):
->>>>>>> cc00178c249c6e8251fa1c42c9c428f114d0af43
     g_nx = nx.erdos_renyi_graph(n, p)
     data = from_networkx(g_nx)
     data = add_node_features_and_target(data)

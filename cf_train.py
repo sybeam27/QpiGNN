@@ -10,7 +10,10 @@ import copy
 import os
 import wandb
 import pickle
-
+import sys
+from utills.function import generate_graph_data, generate_noisy_graph_data, load_county_graph_data, load_twitch_graph_data, \
+            load_wiki_graph_data, load_trans_graph_data, create_ba_graph_pyg, create_er_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg, evaluate_model_performance
+     
 from torch_geometric.datasets import Amazon, Coauthor, CitationFull
 from torch_geometric.logging import log
 from torch_geometric.data import Data
@@ -21,12 +24,17 @@ from conformalized_gnn.calibrator import TS, VS, ETS, CaGCN, GATS
 from conformalized_gnn.conformal import run_conformal_classification, run_conformal_regression
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='county_education_2012', choices = ['Cora_ML_CF', 'CiteSeer_CF', 'DBLP_CF', 'PubMed_CF', 'Amazon-Computers', 'Amazon-Photo', 'Coauthor-CS', 'Coauthor-Physics', 'Anaheim', 'ChicagoSketch', 'county_education_2012', 'county_election_2016', 'county_income_2012', 'county_unemployment_2012', 'twitch_PTBR'])
+parser.add_argument('--dataset', type=str, default='county_education_2012')
+                    # , choices = ['Cora_ML_CF', 'CiteSeer_CF', 'DBLP_CF', 'PubMed_CF', 'Amazon-Computers', 'Amazon-Photo', 'Coauthor-CS', 'Coauthor-Physics', 'Anaheim', 'ChicagoSketch', 'county_education_2012', 'county_election_2016', 'county_income_2012', 'county_unemployment_2012', 'twitch_PTBR'])
 parser.add_argument('--hidden_channels', type=int, default=16)
 parser.add_argument('--model', type=str, default='GCN', choices = ['GAT', 'GCN', 'GraphSAGE', 'SGC'])
 parser.add_argument('--heads', type=int, default=1)
 parser.add_argument('--aggr', type=str, default='sum')
 parser.add_argument('--alpha', type=float, default=0.1)
+
+# 추가한 부분
+parser.add_argument('--nodes', type=float, default=1000, help='num_nodes')
+parser.add_argument('--noise', type=float, default=0.3, help='noise_level')
 
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--epochs', type=int, default=5000)
@@ -78,17 +86,21 @@ parser.add_argument('--optimize_conformal_score', type=str, default='aps', choic
 args = parser.parse_args()
 
 global task
-if args.dataset in ['Anaheim', 
-                    'ChicagoSketch',  
-                    'county_education_2012', 
-                    'county_election_2016',
-                    'county_income_2012',
-                    'county_unemployment_2012',
-                    'twitch_PTBR']:
-    task = 'regression'
-    metric = 'eff_valid_cqr'
-    if args.conformal_score != 'cqr':
-        raise ValueError('For regression task, the training conformal score should be cqr!')
+# 추가한 부분
+task = 'regression'
+metric = 'eff_valid_cqr'
+
+# if args.dataset in ['Anaheim', 
+#                     'ChicagoSketch',  
+#                     'county_education_2012', 
+#                     'county_election_2016',
+#                     'county_income_2012',
+#                     'county_unemployment_2012',
+#                     'twitch_PTBR']:
+#     task = 'regression'
+#     metric = 'eff_valid_cqr'
+#     if args.conformal_score != 'cqr':
+#         raise ValueError('For regression task, the training conformal score should be cqr!')
 # else:    
 #     task = 'classification'
 #     if args.optimize_conformal_score == 'raps':
@@ -106,16 +118,16 @@ if args.optimal:
     args.conf_correct_model = 'gnn'
     args.conftr = True
     args.conftr_calib_holdout = True
-    # if task == 'classification':
-    #     args.conformal_score = 'aps'
-    #     if args.optimize_conformal_score == 'raps':
-    #         metric = 'eff_valid_raps'
-    #     else:
-    #         metric = 'eff_valid_aps'
-    # else:
-    args.conformal_score = 'cqr'
-    args.quantile = True
-    metric = 'eff_valid_cqr'
+    if task == 'classification':
+        args.conformal_score = 'aps'
+        if args.optimize_conformal_score == 'raps':
+            metric = 'eff_valid_raps'
+        else:
+            metric = 'eff_valid_aps'
+    else:
+        args.conformal_score = 'cqr'
+        args.quantile = True
+        metric = 'eff_valid_cqr'
     
     if args.optimize_conformal_score == 'raps':
         with open('./params/optimal_param_set_raps.pkl', 'rb') as f:
@@ -136,8 +148,7 @@ if args.optimal:
 
     #print(args)
     
-if args.bnn:
-# or (task == 'classification'):
+if args.bnn or (task == 'classification'):
     args.quantile = False
 else:    
     args.quantile = True 
@@ -160,11 +171,11 @@ if args.hyperopt:
     args.conf_correct_model = 'gnn'
     args.conftr = True
     args.conftr_calib_holdout = True
-    # if task == 'classification':
-    #     args.conformal_score = 'aps'
-    # else:
-    args.conformal_score = 'cqr'
-    args.quantile = True
+    if task == 'classification':
+        args.conformal_score = 'aps'
+    else:
+        args.conformal_score = 'cqr'
+        args.quantile = True
 
         
 if args.conformal_training:
@@ -339,29 +350,47 @@ def main(args):
     #print(args)
     import torch_geometric.transforms as T
 
-    if args.dataset in ['Cora_CF', 'Cora_ML_CF', 'CiteSeer_CF', 'DBLP_CF', 'PubMed_CF']:
-        path = osp.join('data', 'CitationFull')
-        dataset = CitationFull(path, args.dataset[:-3], transform=T.NormalizeFeatures())
-        data = dataset[0]
-    elif args.dataset in ['Amazon-Computers', 'Amazon-Photo']:
-        path = osp.join('data', 'Amazon')
-        dataset = Amazon(path, args.dataset.split('-')[1], transform=T.NormalizeFeatures())
-        data = dataset[0]
-    elif args.dataset in ['Coauthor-CS', 'Coauthor-Physics']:
-        path = osp.join('data', 'coauthor')
-        dataset = Coauthor(path, args.dataset.split('-')[1], transform=T.NormalizeFeatures())
-        data = dataset[0]
-    else:
+    # if args.dataset in ['Cora_CF', 'Cora_ML_CF', 'CiteSeer_CF', 'DBLP_CF', 'PubMed_CF']:
+    #     path = osp.join('data', 'CitationFull')
+    #     dataset = CitationFull(path, args.dataset[:-3], transform=T.NormalizeFeatures())
+    #     data = dataset[0]
+    # elif args.dataset in ['Amazon-Computers', 'Amazon-Photo']:
+    #     path = osp.join('data', 'Amazon')
+    #     dataset = Amazon(path, args.dataset.split('-')[1], transform=T.NormalizeFeatures())
+    #     data = dataset[0]
+    # elif args.dataset in ['Coauthor-CS', 'Coauthor-Physics']:
+    #     path = osp.join('data', 'coauthor')
+    #     dataset = Coauthor(path, args.dataset.split('-')[1], transform=T.NormalizeFeatures())
+    #     data = dataset[0]
+    # else:
         # edges = pd.read_csv('./dataset_regression/' + args.dataset + '_edge_list.txt', sep = '\t', header = None) -1
         # feats = pd.read_csv('./dataset_regression/' + args.dataset + '_features.txt', sep = '\t', header = None)
         # labels = pd.read_csv('./dataset_regression/' + args.dataset + '_labels.txt', sep = '\t', header = None)
         
-        # 추가한 부분
-        from utills.function import load_trans_graph_data
-        pyg_data = load_trans_graph_data(args.dataset)
-        data = Data(x=pyg_data.x, edge_index=pyg_data.edge_index, y=pyg_data.y)
-        x = data.x
-        y = data.y
+    if args.dataset == 'basic':
+        graph_data = generate_graph_data(num_nodes=args.nodes)
+    elif args.dataset in ('gaussian', 'uniform', 'outlier', 'edge'):
+        graph_data = generate_noisy_graph_data(num_nodes=args.nodes, noise_type=args.dataset, noise_level=args.noise)
+    elif args.dataset in ('education', 'election', 'income', 'unemployment'):
+        graph_data = load_county_graph_data(args.dataset, 2012)
+    elif args.dataset in ('DE', 'ENGB', 'ES', 'FR', 'PTBR', 'RU'):
+        graph_data = load_twitch_graph_data(args.dataset)
+    elif args.dataset in ('chameleon', 'crocodile', 'squirrel'):
+        graph_data = load_wiki_graph_data(args.dataset)
+    elif args.dataset in ('Anaheim', 'ChicagoSketch'):
+        graph_data = load_trans_graph_data(args.dataset)
+    elif args.dataset == 'BA':
+        graph_data = create_ba_graph_pyg(n=args.nodes)
+    elif args.dataset == 'ER':
+        graph_data = create_er_graph_pyg(n=args.nodes)
+    elif args.dataset == 'grid':
+        graph_data = create_grid_graph_pyg()
+    elif args.dataset == 'tree':
+        graph_data = create_tree_graph_pyg()
+        
+    data = Data(x=graph_data.x, edge_index=graph_data.edge_index, y=graph_data.y)
+    x = data.x
+    y = data.y
         
         # edge_index = torch.tensor(edges[[0, 1]].values.T, dtype=torch.long)
         # x = torch.tensor(feats.values, dtype=torch.float)
@@ -376,6 +405,7 @@ def main(args):
     #     split_res = np.split(idx, [int(0.2 * len(idx)), int(0.3 * len(idx)), len(idx)])
     #     train_idx, valid, calib_test = split_res[0], split_res[1], split_res[2]
     # elif task == 'regression':
+    
     idx = np.array(range(len(y)))  
     np.random.seed(args.data_seed)
     np.random.shuffle(idx)
@@ -424,55 +454,55 @@ def main(args):
             else:
                 output_dim = 1
             num_features = x.shape[1]
-        else:
-            output_dim = dataset.num_classes
-            num_features = dataset.num_features
+        # else:
+        #     output_dim = dataset.num_classes
+        #     num_features = dataset.num_features
             
-        if (os.path.exists(model_checkpoint)) and (not args.retrain):
-            print('loading saved base model...')
-            model = torch.load(model_checkpoint, map_location = device)
-            model, data = model.to(device), data.to(device)
-            model.eval()
-            pred = model(data.x, data.edge_index)
-            best_model = model
-            best_pred = pred
-        else:
-            print('training base model from scratch...')
-            model = GNN(num_features, args.hidden_channels, output_dim, args.model, args.heads, args.aggr)    
+        # if (os.path.exists(model_checkpoint)) and (not args.retrain):
+        #     print('loading saved base model...')
+        #     model = torch.load(model_checkpoint, map_location = device)
+        #     model, data = model.to(device), data.to(device)
+        #     model.eval()
+        #     pred = model(data.x, data.edge_index)
+        #     best_model = model
+        #     best_pred = pred
+        # else:
+        print('training base model from scratch...')
+        model = GNN(num_features, args.hidden_channels, output_dim, args.model, args.heads, args.aggr)    
 
-            model, data = model.to(device), data.to(device)
-            optimizer = torch.optim.Adam([
-                dict(params=model.conv1.parameters(), weight_decay=5e-4),
-                dict(params=model.conv2.parameters(), weight_decay=0)
-            ], lr=args.lr)  # Only perform weight-decay on first convolution.
+        model, data = model.to(device), data.to(device)
+        optimizer = torch.optim.Adam([
+            dict(params=model.conv1.parameters(), weight_decay=5e-4),
+            dict(params=model.conv2.parameters(), weight_decay=0)
+        ], lr=args.lr)  # Only perform weight-decay on first convolution.
 
-            best_val_acc = final_test_acc = 0
-            for epoch in range(1, args.epochs + 1):
-                loss = train(epoch, model, data, optimizer, alpha)
-                if args.quantile:
-                    mse = loss[1]
-                    lower = loss[2]
-                    upper = loss[3]
-                    loss = loss[0]
-                
-                (train_acc, val_acc, tmp_test_calib_acc), pred = test(model, data, alpha, tau, target_size)
-                if val_acc > best_val_acc:
-                    #torch.save(best_model, model_checkpoint)
-                    best_model = copy.deepcopy(model)
-                    best_val_acc = val_acc
-                    test_acc = tmp_test_calib_acc
-                    best_pred = pred
-                if args.quantile:
-                    if args.verbose:
-                        log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Calib_Test=tmp_test_calib_acc, upper=upper, lower=lower, mse=mse)
+        best_val_acc = final_test_acc = 0
+        for epoch in range(1, args.epochs + 1):
+            loss = train(epoch, model, data, optimizer, alpha)
+            if args.quantile:
+                mse = loss[1]
+                lower = loss[2]
+                upper = loss[3]
+                loss = loss[0]
+            
+            (train_acc, val_acc, tmp_test_calib_acc), pred = test(model, data, alpha, tau, target_size)
+            if val_acc > best_val_acc:
+                #torch.save(best_model, model_checkpoint)
+                best_model = copy.deepcopy(model)
+                best_val_acc = val_acc
+                test_acc = tmp_test_calib_acc
+                best_pred = pred
+            if args.quantile:
+                if args.verbose:
+                    log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Calib_Test=tmp_test_calib_acc, upper=upper, lower=lower, mse=mse)
 
-                else:
-                    if args.verbose:
-                        log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Calib_Test=tmp_test_calib_acc)
+            else:
+                if args.verbose:
+                    log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Calib_Test=tmp_test_calib_acc)
 
-            torch.save(best_model, model_checkpoint)
-            pred = best_pred
-        
+        # torch.save(best_model, model_checkpoint)
+        pred = best_pred
+    
         (train_acc, val_acc, test_acc), _ = test(best_model, data, alpha, tau, target_size, size_loss = False)
         
         result_this_run['gnn'] = {}
@@ -780,7 +810,36 @@ def main(args):
             if task == 'regression':
                 result_this_run['conf_gnn']['CQR'] = run_conformal_regression(best_pred, data, n, alpha, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
                 result_this_run['conf_gnn']['eff_valid'] = run_conformal_regression(best_pred, data, n, alpha, validation_set = True)[1]
-            
+                
+                # 추가한 코드
+                # best_pred: (N, 3) ndarray or tensor → 예측 평균, 하한, 상한 포함된 예측 결과
+                pred_np = best_pred.detach().cpu().numpy()
+                print(pred_np)
+
+                # 예측 구간 분리
+                lower = pred_np[:, 0]  # 하한
+                upper = pred_np[:, 1]  # 상한
+                print("하한이 상한보다 작아야 함:", np.all(lower <= upper))
+
+                targets_all = data.y.detach().cpu().numpy()
+                train_mask = data.train_mask
+                test_mask = data.calib_test_mask if hasattr(data, 'calib_test_mask') else data.valid_mask
+
+                train_preds_low = lower[train_mask]
+                train_preds_up = upper[train_mask]
+                train_targets = targets_all[train_mask]
+
+                train_metrics = evaluate_model_performance(train_preds_low, train_preds_up, train_targets, target=args.alpha)
+
+                test_preds_low = lower[test_mask]
+                test_preds_up = upper[test_mask]
+                test_targets = targets_all[test_mask]
+
+                test_metrics = evaluate_model_performance(test_preds_low, test_preds_up, test_targets, target=args.alpha)
+
+                result_this_run['train_metrics'] = train_metrics
+                result_this_run['test_metrics'] = test_metrics
+                
             else:
                 result_this_run['conf_gnn']['APS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'aps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
                 result_this_run['conf_gnn']['RAPS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'raps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
@@ -815,64 +874,65 @@ def main(args):
             wandb.log({'gnn_cqr_eff': np.mean([result_this_run['gnn']['CQR'][1] for i, result_this_run in tau2res.items()])})
             wandb.log({'eff_valid_cqr': np.mean([result_this_run['conf_gnn']['eff_valid'] for i, result_this_run in tau2res.items()])})
 
-def hyperopt_loop():
-    run = wandb.init()
-    args_hyperopt = copy.deepcopy(args)
-    if task == 'regression':
-        args_hyperopt.reg_loss_weight = wandb.config.reg_loss_weight
-    else:
-        args_hyperopt.target_size = wandb.config.target_size
-        args_hyperopt.tau = wandb.config.tau
-    args_hyperopt.confnn_hidden_dim = wandb.config.confnn_hidden_dim
-    args_hyperopt.confgnn_num_layers = wandb.config.confgnn_num_layers
-    args_hyperopt.confgnn_base_model = wandb.config.confgnn_base_model
-    args_hyperopt.confgnn_lr = wandb.config.confgnn_lr
-    args_hyperopt.size_loss_weight = wandb.config.size_loss_weight
+
+
+# def hyperopt_loop():
+#     run = wandb.init()
+#     args_hyperopt = copy.deepcopy(args)
+#     if task == 'regression':
+#         args_hyperopt.reg_loss_weight = wandb.config.reg_loss_weight
+#     else:
+#         args_hyperopt.target_size = wandb.config.target_size
+#         args_hyperopt.tau = wandb.config.tau
+#     args_hyperopt.confnn_hidden_dim = wandb.config.confnn_hidden_dim
+#     args_hyperopt.confgnn_num_layers = wandb.config.confgnn_num_layers
+#     args_hyperopt.confgnn_base_model = wandb.config.confgnn_base_model
+#     args_hyperopt.confgnn_lr = wandb.config.confgnn_lr
+#     args_hyperopt.size_loss_weight = wandb.config.size_loss_weight
     
-    main(args_hyperopt)
+#     main(args_hyperopt)
+              
+# if args.hyperopt:
+#     if task == 'regression':
+#         parameter_set = {
+#             'confnn_hidden_dim': {'values': [16, 32, 64, 128, 256]},
+#             'confgnn_lr': {'values': [1e-1,1e-2,1e-3,1e-4]},
+#             'confgnn_num_layers': {'values': [1,2,3,4]},
+#             'confgnn_base_model': {'values': ['GAT', 'GCN', 'GraphSAGE', 'SGC']},
+#             'size_loss_weight': {'values': [1,1e-1,1e-2,1e-3]},
+#             'reg_loss_weight': {'values': [1,1e-1]}
+#          }
+#     else:
+#         parameter_set = {
+#             'target_size': {'values': [0, 1]},
+#             'confnn_hidden_dim': {'values': [16, 32, 64, 128, 256]},
+#             'confgnn_lr': {'values': [1e-1,1e-2,1e-3,1e-4]},
+#             'confgnn_num_layers': {'values': [1,2,3,4]},
+#             'confgnn_base_model': {'values': ['GAT', 'GCN', 'GraphSAGE', 'SGC']},
+#             'tau': {'values': [10, 1, 1e-1,1e-2,1e-3]},
+#             'size_loss_weight': {'values': [1,1e-1,1e-2,1e-3]}
+#          }
     
-            
-if args.hyperopt:
-    if task == 'regression':
-        parameter_set = {
-            'confnn_hidden_dim': {'values': [16, 32, 64, 128, 256]},
-            'confgnn_lr': {'values': [1e-1,1e-2,1e-3,1e-4]},
-            'confgnn_num_layers': {'values': [1,2,3,4]},
-            'confgnn_base_model': {'values': ['GAT', 'GCN', 'GraphSAGE', 'SGC']},
-            'size_loss_weight': {'values': [1,1e-1,1e-2,1e-3]},
-            'reg_loss_weight': {'values': [1,1e-1]}
-         }
-    else:
-        parameter_set = {
-            'target_size': {'values': [0, 1]},
-            'confnn_hidden_dim': {'values': [16, 32, 64, 128, 256]},
-            'confgnn_lr': {'values': [1e-1,1e-2,1e-3,1e-4]},
-            'confgnn_num_layers': {'values': [1,2,3,4]},
-            'confgnn_base_model': {'values': ['GAT', 'GCN', 'GraphSAGE', 'SGC']},
-            'tau': {'values': [10, 1, 1e-1,1e-2,1e-3]},
-            'size_loss_weight': {'values': [1,1e-1,1e-2,1e-3]}
-         }
-    
-    sweep_configuration = {
-        'method': 'bayes',
-        'name': 'sweep',
-        'metric': {
-            'goal': 'minimize', 
-            'name': metric
-        },
-        'parameters': parameter_set
-    }
+#     sweep_configuration = {
+#         'method': 'bayes',
+#         'name': 'sweep',
+#         'metric': {
+#             'goal': 'minimize', 
+#             'name': metric
+#         },
+#         'parameters': parameter_set
+#     }
         
-    if args.optimize_conformal_score == 'raps':
-        sweep_id = wandb.sweep(sweep=sweep_configuration, project='Conformalized_' + args.model + '_' + args.dataset + '_raps')
-        wandb.agent(sweep_id, function=hyperopt_loop, count=100)
-    else:
-        sweep_id = wandb.sweep(sweep=sweep_configuration, project='Conformalized_' + args.model + '_' + args.dataset + '_' + str(args.alpha))
-        wandb.agent(sweep_id, function=hyperopt_loop, count=100)
-else:
-    
-    if args.optimal_examine:
-        res = main(args)
+#     if args.optimize_conformal_score == 'raps':
+#         sweep_id = wandb.sweep(sweep=sweep_configuration, project='Conformalized_' + args.model + '_' + args.dataset + '_raps')
+#         wandb.agent(sweep_id, function=hyperopt_loop, count=100)
+#     else:
+#         sweep_id = wandb.sweep(sweep=sweep_configuration, project='Conformalized_' + args.model + '_' + args.dataset + '_' + str(args.alpha))
+#         wandb.agent(sweep_id, function=hyperopt_loop, count=100)
+# else:
+#     if args.optimal_examine:
+#         res = main(args)
+#     else:
+#         main(args)
         
-    else:
-        main(args)
+main(args)

@@ -1,0 +1,2 @@
+# CF-GNN
+python train.py --dataset basic --hidden_channels 64 --model "GraphSAGE" --alpha 0.1 --epochs 100 --num_runs 1 --device "cuda:0"

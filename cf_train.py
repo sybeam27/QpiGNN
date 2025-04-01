@@ -361,6 +361,9 @@ def main(args):
 
         best_val_acc = final_test_acc = 0
         
+        torch.cuda.reset_peak_memory_stats()
+        start_time = time.time()
+        
         for epoch in range(1, args.epochs + 1):
             loss = train(epoch, model, data, optimizer, alpha)
             if args.quantile:
@@ -377,6 +380,7 @@ def main(args):
                 best_val_acc = val_acc
                 test_acc = tmp_test_calib_acc
                 best_pred = pred
+                
             if args.quantile:
                 if args.verbose:
                     log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Calib_Test=tmp_test_calib_acc, upper=upper, lower=lower, mse=mse)
@@ -393,10 +397,15 @@ def main(args):
         
         # 추가한 코드
         end_time = time.time()
-        result_this_run['gnn']['training_time_sec'] = round(end_time - start_time, 2)
-        result_this_run['gnn']['gpu_mem_MB'] = round(get_gpu_memory(), 2)
-        result_this_run['gnn']['cpu_mem_MB'] = round(get_cpu_memory(), 2)
-        result_this_run['gnn']['param_count'] = count_parameters(model)
+        training_time = end_time - start_time
+        gpu_mem = get_gpu_memory()
+        cpu_mem = get_cpu_memory()
+        param_count = count_parameters(model)
+        
+        result_this_run['gnn']['training_time_sec'] = round(training_time, 2)
+        result_this_run['gnn']['gpu_mem_MB'] = round(gpu_mem, 2)
+        result_this_run['gnn']['cpu_mem_MB'] = round(cpu_mem, 2)
+        result_this_run['gnn']['param_count'] = param_count
 
         if args.bnn:
             pred = pred.detach().cpu().numpy()
@@ -598,19 +607,18 @@ def main(args):
         
         # 추가한 코드
         end_time = time.time()
-        result_this_run['conf_gnn']['training_time_sec'] = round(end_time - start_time, 2)
-        result_this_run['conf_gnn']['gpu_mem_MB'] = round(get_gpu_memory(), 2)
-        result_this_run['conf_gnn']['cpu_mem_MB'] = round(get_cpu_memory(), 2)
-        result_this_run['conf_gnn']['param_count'] = count_parameters(confmodel)
+        training_time = end_time - start_time
+        gpu_mem = get_gpu_memory()
+        cpu_mem = get_cpu_memory()
+        param_count = count_parameters(model)
+        
+        result_this_run['conf_gnn']['training_time_sec'] = round(training_time, 2)
+        result_this_run['conf_gnn']['gpu_mem_MB'] = round(gpu_mem, 2)
+        result_this_run['conf_gnn']['cpu_mem_MB'] = round(cpu_mem, 2)
+        result_this_run['conf_gnn']['param_count'] = param_count
         
         print(f"[Base Model] Time: {result_this_run['gnn']['training_time_sec']}s | GPU: {result_this_run['gnn']['gpu_mem_MB']}MB | Params: {result_this_run['gnn']['param_count']}")
         print(f"[ConfGNN] Time: {result_this_run['conf_gnn']['training_time_sec']}s | GPU: {result_this_run['conf_gnn']['gpu_mem_MB']}MB | Params: {result_this_run['conf_gnn']['param_count']}")
-        
-        result_this_run['total'] = {
-        'training_time_sec': result_this_run['gnn']['training_time_sec'] + result_this_run['conf_gnn']['training_time_sec'],
-        'gpu_mem_MB': max(result_this_run['gnn']['gpu_mem_MB'], result_this_run['conf_gnn']['gpu_mem_MB']),  # peak 기준
-        'param_count': result_this_run['gnn']['param_count'] + result_this_run['conf_gnn']['param_count']
-        }
             
         if task == 'regression':
             result_this_run['conf_gnn']['CQR'] = run_conformal_regression(best_pred, data, n, alpha, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
@@ -623,48 +631,15 @@ def main(args):
             print('-' * 40, f'CF-GNN: {args.dataset} Test Evaluation... ', '-' * 40)
             result_this_run['test_metrics'] = run_conformal_regression(best_pred, data, n, alpha, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction, 
                                                                        evaluate=True, target = 1-alpha) 
-            # # 추가한 코드
-            # # best_pred: (N, 3) ndarray or tensor → 예측 평균, 하한, 상한 포함된 예측 결과
-            # pred_np = best_pred.detach().cpu().numpy()
-
-            # # 예측 구간 분리
-            # lower = pred_np[:, 1]  # 하한
-            # upper = pred_np[:, 2]  # 상한
-            # print("하한이 상한보다 작아야 함:", np.all(lower <= upper))
-
-            # targets_all = data.y.detach().cpu().numpy()
-            # train_mask = data.train_mask
-            # test_mask = data.calib_test_mask if hasattr(data, 'calib_test_mask') else data.valid_mask
-
-            # train_preds_low = lower[train_mask]
-            # train_preds_up = upper[train_mask]
-            # train_targets = targets_all[train_mask]
-
-            # train_metrics = evaluate_model_performance(train_preds_low, train_preds_up, train_targets, target=args.alpha)
-
-            # test_preds_low = lower[test_mask]
-            # test_preds_up = upper[test_mask]
-            # test_targets = targets_all[test_mask]
-
-            # test_metrics = evaluate_model_performance(test_preds_low, test_preds_up, test_targets, target=args.alpha)
-
-            # result_this_run['train_metrics'] = train_metrics
-            # result_this_run['test_metrics'] = test_metrics
-            
-        else:
-            result_this_run['conf_gnn']['APS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'aps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
-            result_this_run['conf_gnn']['RAPS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'raps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
-            result_this_run['conf_gnn']['eff_valid'] = run_conformal_classification(best_pred, data, n, alpha, score = 'aps', validation_set = True)[1]
-            result_this_run['conf_gnn']['eff_valid_raps'] = run_conformal_classification(best_pred, data, n, alpha, score = 'raps', validation_set = True)[1]
             
         tau2res[run] = result_this_run
         print('Finished training this run!')
       
-    if not os.path.exists('./pred_cfgnn'):
-        os.mkdir('./pred_cfgnn')
+    if not os.path.exists('./pred/CF-GNN'):
+        os.mkdir('./pred/CF-GNN')
     if not args.not_save_res:
-        print('Saving results to', './pred_cfgnn/' + name +'.pkl')
-        with open('./pred_cfgnn/' + name +'.pkl', 'wb') as f:
+        print('Saving results to', './pred/CF-GNN/' + name +'.pkl')
+        with open('./pred/CF-GNN/' + name +'.pkl', 'wb') as f:
             pickle.dump(tau2res, f)
         
         

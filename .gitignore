@@ -4,6 +4,7 @@ gqnn_env/
 
 bf/
 result/
+pred/
 pred_cf/
 pred_gqnn/
 params/

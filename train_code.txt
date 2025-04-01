@@ -132,26 +132,26 @@ python gqnn_train.py --dataset "Anaheim" --model "MC" --target_coverage 0.9
 python gqnn_train.py --dataset "ChicagoSketch" --model "MC" --target_coverage 0.9
 
 # GQNN
-python gqnn_train.py --dataset "basic" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "gaussian" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "uniform" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "outlier" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "edge" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "BA" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "ER" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "grid" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "tree" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "basic" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "gaussian" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "uniform" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "outlier" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "edge" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "BA" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "ER" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "grid" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "tree" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
 
-python gqnn_train.py --dataset "education" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "election" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "income" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "unemployment" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "PTBR" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "chameleon" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "crocodile" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "squirrel" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "Anaheim" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
-python gqnn_train.py --dataset "ChicagoSketch" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "education" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "election" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "income" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "unemployment" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "PTBR" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "chameleon" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "crocodile" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "squirrel" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "Anaheim" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
+python gqnn_train.py --dataset "ChicagoSketch" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.05
 
 # CF-GNN
 python cf_train.py --dataset "basic" --alpha 0.1

@@ -115,7 +115,7 @@ if args.model == 'CP':
     print(f"Test edge_index 최대값: {test_data.edge_index.max().item()}")
 
 # result folder & file
-root_dir = f"./pred_gqnn/{args.model}/"
+root_dir = f"./pred/{args.model}/"
 os.makedirs(root_dir, exist_ok=True)
 
 if args.pdf:

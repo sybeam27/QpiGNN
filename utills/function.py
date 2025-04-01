@@ -4,6 +4,8 @@ import re
 import random
 import argparse
 from tqdm import tqdm
+import time
+import psutil
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -28,6 +30,17 @@ from torch_geometric.nn import SAGEConv, GATConv, GCNConv, GraphSAGE
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from torch_geometric.transforms import RandomNodeSplit
+
+def get_gpu_memory():
+    if torch.cuda.is_available():
+        return torch.cuda.max_memory_allocated() / (1024 ** 2)  # MB
+    return 0
+
+def get_cpu_memory():
+    return psutil.Process().memory_info().rss / (1024 ** 2)  # MB
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 def generate_graph_data(num_nodes=1000):
     np.random.seed(1127)
@@ -601,10 +614,11 @@ def evaluate_model_performance(preds_low, preds_upper, targets, target=0.9):
 
     
     return {
-        "CWC": cwc,
         "PCIP": picp,
+        'MPIW': interval_width, 
         "NMPIW": nmpiw,
         "MCT": mct,
+        "CWC": cwc,
         "MPE": mpe,
         "Sharpness": sharpness,
         "WS": winkler

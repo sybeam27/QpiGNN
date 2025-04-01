@@ -1,4 +1,8 @@
 venv/
 gqnn_env/
 # dataset/
+
 bf/
+result/
+pred/
+params/

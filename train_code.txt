@@ -1,0 +1,176 @@
+# Synthetic Dataset list
+- basic
+- gaussian
+- uniform
+- outlier
+- edge
+- BA
+- ER
+- grid
+- tree
+
+# Real Dataset list
+- education
+- election
+- income
+- unemployment
+- PTBR
+- chameleon
+- crocodile
+- squirrel
+- Anaheim
+- ChicagoSketch
+
+# SQR
+python gqnn_train.py --dataset "basic" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "gaussian" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "uniform" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "outlier" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "edge" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "BA" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "ER" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "grid" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "tree" --model "SQR" --target_coverage 0.9
+
+python gqnn_train.py --dataset "education" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "election" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "income" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "unemployment" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "PTBR" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "chameleon" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "crocodile" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "squirrel" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "Anaheim" --model "SQR" --target_coverage 0.9
+python gqnn_train.py --dataset "ChicagoSketch" --model "SQR" --target_coverage 0.9
+
+# RQR
+python gqnn_train.py --dataset "basic" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "gaussian" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "uniform" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "outlier" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "edge" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "BA" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "ER" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "grid" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "tree" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+
+python gqnn_train.py --dataset "education" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "election" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "income" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "unemployment" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "PTBR" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "chameleon" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "crocodile" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "squirrel" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "Anaheim" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "ChicagoSketch" --model "RQR" --target_coverage 0.9 --lambda_factor 0.1
+
+# CP
+python gqnn_train.py --dataset "basic" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "gaussian" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "uniform" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "outlier" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "edge" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "BA" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "ER" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "grid" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "tree" --model "CP" --target_coverage 0.9
+
+python gqnn_train.py --dataset "education" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "election" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "income" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "unemployment" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "PTBR" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "chameleon" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "crocodile" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "squirrel" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "Anaheim" --model "CP" --target_coverage 0.9
+python gqnn_train.py --dataset "ChicagoSketch" --model "CP" --target_coverage 0.9
+
+# BayesianNN
+python gqnn_train.py --dataset "basic" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "gaussian" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "uniform" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "outlier" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "edge" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "BA" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "ER" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "grid" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "tree" --model "BNN" --target_coverage 0.9
+
+python gqnn_train.py --dataset "education" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "election" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "income" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "unemployment" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "PTBR" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "chameleon" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "crocodile" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "squirrel" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "Anaheim" --model "BNN" --target_coverage 0.9
+python gqnn_train.py --dataset "ChicagoSketch" --model "BNN" --target_coverage 0.9
+
+# MC dropout
+python gqnn_train.py --dataset "basic" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "gaussian" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "uniform" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "outlier" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "edge" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "BA" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "ER" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "grid" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "tree" --model "MC" --target_coverage 0.9
+
+python gqnn_train.py --dataset "education" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "election" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "income" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "unemployment" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "PTBR" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "chameleon" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "crocodile" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "squirrel" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "Anaheim" --model "MC" --target_coverage 0.9
+python gqnn_train.py --dataset "ChicagoSketch" --model "MC" --target_coverage 0.9
+
+# GQNN
+python gqnn_train.py --dataset "basic" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "gaussian" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "uniform" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "outlier" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "edge" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "BA" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "ER" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "grid" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "tree" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+
+python gqnn_train.py --dataset "education" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "election" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "income" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "unemployment" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "PTBR" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "chameleon" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "crocodile" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "squirrel" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "Anaheim" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python gqnn_train.py --dataset "ChicagoSketch" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+
+# CF-GNN
+python cf_train.py --dataset "basic" --alpha 0.1
+python cf_train.py --dataset "gaussian" --alpha 0.1
+python cf_train.py --dataset "uniform" --alpha 0.1
+python cf_train.py --dataset "outlier" --alpha 0.1
+python cf_train.py --dataset "edge" --alpha 0.1
+python cf_train.py --dataset "BA" --alpha 0.1
+python cf_train.py --dataset "ER" --alpha 0.1
+python cf_train.py --dataset "grid" --alpha 0.1
+python cf_train.py --dataset "tree" --alpha 0.1
+
+python cf_train.py --dataset "education" --alpha 0.1
+python cf_train.py --dataset "election" --alpha 0.1
+python cf_train.py --dataset "income" --alpha 0.1
+python cf_train.py --dataset "unemployment" --alpha 0.1
+python cf_train.py --dataset "PTBR" --alpha 0.1
+python cf_train.py --dataset "chameleon" --alpha 0.1
+python cf_train.py --dataset "crocodile" --alpha 0.1
+python cf_train.py --dataset "squirrel" --alpha 0.1
+python cf_train.py --dataset "Anaheim" --alpha 0.1
+python cf_train.py --dataset "ChicagoSketch" --alpha 0.1

@@ -1,11 +1,11 @@
 import sys
-sys.path('./utills')
 import os
 import re
 import random
 import argparse
 import pickle
 from tqdm import tqdm
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -35,7 +35,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from torch_geometric.transforms import RandomNodeSplit
 from utills.function import set_seed, generate_graph_data, generate_noisy_graph_data, load_county_graph_data, load_twitch_graph_data, \
             load_wiki_graph_data, load_trans_graph_data, create_ba_graph_pyg, create_er_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg, \
-            normalize, split_graph_data, split_cp_graph_data, evaluate_model_performance, sort_by_y, coverage_width
+            normalize, split_graph_data, split_cp_graph_data, evaluate_model_performance, sort_by_y, coverage_width, \
+                get_gpu_memory, get_cpu_memory, count_parameters
 from utills.model import GQNN_R, GQNN_N, GNN_CP, BayesianGNN, MCDropoutGNN, GQNN, QRLoss, RQRLoss, GQNNLoss, GQNNLoss2
 
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
@@ -44,25 +45,24 @@ from utills.model import GQNN_R, GQNN_N, GNN_CP, BayesianGNN, MCDropoutGNN, GQNN
 set_seed(1127)  
 
 parser = argparse.ArgumentParser(description='Train GQNN Model')
-parser.add_argument('--gpu', type=str, default="0", help='gpu_number')
-parser.add_argument('--date', type=float, default=0000, help='index_dates')
-parser.add_argument('--pdf', type=bool, default=True, help='pdf_save')
-
 parser.add_argument('--dataset', type=str, default="basic", help='dataset_name')
 parser.add_argument('--nodes', type=float, default=1000, help='num_nodes')
 parser.add_argument('--noise', type=float, default=0.3, help='noise_level')
-parser.add_argument('--model', type=str, default="GQNN", help='model_name')
-parser.add_argument('--device', type=str, default='cuda:0')
+parser.add_argument('--target_coverage', type=float, default=0.9, help='target_coverage')
 
+parser.add_argument('--model', type=str, default="GQNN", help='model_name')
 parser.add_argument('--hidden_dim', type=float, default=64, help='hidden_dim')
 parser.add_argument('--learning_rate', type=float, default=1e-3, help='learning_rate')
 parser.add_argument('--weight', type=float, default=1e-3, help='weight_decay')
+
 parser.add_argument('--epochs', type=float, default=500, help='num_epochs')
 parser.add_argument('--runs', type=int, default=10, help='num_runs')
+parser.add_argument('--device', type=str, default='cuda:0')
+parser.add_argument('--pdf', type=bool, default=False, help='pdf_save')
 
 # parser.add_argument('--tau_low', type=float, default=0.05, help='tau_low')
 # parser.add_argument('--tau_upper', type=float, default=0.95, help='tau_upper')
-parser.add_argument('--target_coverage', type=float, default=0.9, help='target_coverage')
+
 
 parser.add_argument('--lambda_factor', type=float, default=1, help='lambda_factor')
 parser.add_argument('--num_samples', type=float, default=100, help='num_samples')
@@ -73,25 +73,25 @@ args = parser.parse_args()
 device = torch.device(args.device)
 
 if args.dataset != '':
-    if args.dataset_name == 'basic':
-        graph_data = generate_graph_data(num_nodes=args.num_nodes)
-    elif args.dataset_name in ('gaussian', 'uniform', 'outlier', 'edge'):
-        graph_data = generate_noisy_graph_data(num_nodes=args.num_nodes, noise_type=args.dataset_name, noise_level=args.noise_level)
-    elif args.dataset_name in ('education', 'election', 'income', 'unemployment'):
-        graph_data = load_county_graph_data(args.dataset_name, 2012)
-    elif args.dataset_name in ('DE', 'ENGB', 'ES', 'FR', 'PTBR', 'RU'):
-        graph_data = load_twitch_graph_data(args.dataset_name)
-    elif args.dataset_name in ('chameleon', 'crocodile', 'squirrel'):
-        graph_data = load_wiki_graph_data(args.dataset_name)
-    elif args.dataset_name in ('Anaheim', 'ChicagoSketch'):
-        graph_data = load_trans_graph_data(args.dataset_name)
-    elif args.dataset_name == 'BA':
-        graph_data = create_ba_graph_pyg(n=args.num_nodes)
-    elif args.dataset_name == 'ER':
-        graph_data = create_er_graph_pyg(n=args.num_nodes)
-    elif args.dataset_name == 'grid':
+    if args.dataset == 'basic':
+        graph_data = generate_graph_data(num_nodes=args.nodes)
+    elif args.dataset in ('gaussian', 'uniform', 'outlier', 'edge'):
+        graph_data = generate_noisy_graph_data(num_nodes=args.nodes, noise_type=args.dataset, noise_level=args.noise)
+    elif args.dataset in ('education', 'election', 'income', 'unemployment'):
+        graph_data = load_county_graph_data(args.dataset, 2012)
+    elif args.dataset in ('DE', 'ENGB', 'ES', 'FR', 'PTBR', 'RU'):
+        graph_data = load_twitch_graph_data(args.dataset)
+    elif args.dataset in ('chameleon', 'crocodile', 'squirrel'):
+        graph_data = load_wiki_graph_data(args.dataset)
+    elif args.dataset in ('Anaheim', 'ChicagoSketch'):
+        graph_data = load_trans_graph_data(args.dataset)
+    elif args.dataset == 'BA':
+        graph_data = create_ba_graph_pyg(n=args.nodes)
+    elif args.dataset == 'ER':
+        graph_data = create_er_graph_pyg(n=args.nodes)
+    elif args.dataset == 'grid':
         graph_data = create_grid_graph_pyg()
-    elif args.dataset_name == 'tree':
+    elif args.dataset == 'tree':
         graph_data = create_tree_graph_pyg()
     
 # split data & normalize
@@ -115,18 +115,19 @@ if args.model == 'CP':
     print(f"Test edge_index 최대값: {test_data.edge_index.max().item()}")
 
 # result folder & file
-root_dir = f"./result"
-csv_dir = os.path.join(root_dir, 'eval')
-os.makedirs(csv_dir, exist_ok=True)
-pdf_dir = os.path.join(root_dir, 'img')
-os.makedirs(pdf_dir, exist_ok=True)
+root_dir = f"./pred_gqnn/{args.model}"
+os.makedirs(root_dir, exist_ok=True)
+
+if args.pdf:
+    pdf_dir = os.path.join(root_dir, 'img')
+    os.makedirs(pdf_dir, exist_ok=True)
 
 file_name = args.dataset + '_' + args.model
 if args.model == 'GQNN':
     file_name += f'_lf({args.lambda_factor})'
 
 # Training..
-print('-' * 40, f'{args.model}: {args.dataset_name} training is starting... ', '-' * 40)
+print('-' * 40, f'{args.model}: {args.dataset} training is starting... ', '-' * 40)
 
 in_dim = train_data.x.shape[1]
 train_data = train_data.to(device)
@@ -145,7 +146,10 @@ for run in tqdm(range(args.runs)):
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
         criterion = QRLoss()
         
-        for epoch in tqdm(range(args.epochs)):
+        torch.cuda.reset_peak_memory_stats() 
+        start_time = time.time()
+        
+        for epoch in range(args.epochs):
             model.train()
             optimizer.zero_grad()
             
@@ -155,8 +159,21 @@ for run in tqdm(range(args.runs)):
                 
             loss.backward()
             optimizer.step()
-                        
-        print('-' * 40, f'{args.model}: {args.dataset_name} Train Evaluation... ', '-' * 40)
+        
+        end_time = time.time()
+        training_time = end_time - start_time
+        gpu_mem = get_gpu_memory()
+        cpu_mem = get_cpu_memory()
+        param_count = count_parameters(model)
+
+        result_this_run['training_time_sec'] = round(training_time, 2)
+        result_this_run['gpu_mem_MB'] = round(gpu_mem, 2)
+        result_this_run['cpu_mem_MB'] = round(cpu_mem, 2)
+        result_this_run['param_count'] = param_count
+        
+        print(f"Training Time: {training_time:.2f}s | GPU Peak: {gpu_mem:.1f}MB | CPU: {cpu_mem:.1f}MB | Params: {param_count:,}")
+
+        print('-' * 40, f'{args.model}: {args.dataset} Train Evaluation... ', '-' * 40)
         model.eval()
         tau_lows = torch.full((train_data.x.size(0), 1), tau_low, dtype=torch.float32, device=device)
         tau_uppers = torch.full((train_data.x.size(0), 1), tau_upper, dtype=torch.float32, device=device)
@@ -168,7 +185,7 @@ for run in tqdm(range(args.runs)):
         train_eval = evaluate_model_performance(train_low_preds, train_upper_preds, train_targets, target=args.target_coverage)
         result_this_run['train_metrics'] = train_eval
         
-        print('-' * 40, f'{args.model}: {args.dataset_name} Test Evaluation... ', '-' * 40)
+        print('-' * 40, f'{args.model}: {args.dataset} Test Evaluation... ', '-' * 40)
         test_data = test_data.to(device)
         tau_lows = torch.full((test_data.x.size(0), 1), tau_low, dtype=torch.float32, device=device)
         tau_uppers = torch.full((test_data.x.size(0), 1), tau_upper, dtype=torch.float32, device=device)
@@ -186,7 +203,10 @@ for run in tqdm(range(args.runs)):
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
         criterion = RQRLoss(target=args.target_coverage, lambda_factor=args.lambda_factor)  # lambda_factor 고정함
         
-        for epoch in tqdm(range(args.epochs)):
+        torch.cuda.reset_peak_memory_stats()  # GPU peak 메모리 초기화
+        start_time = time.time()    
+        
+        for epoch in range(args.epochs):
             model.train()
             optimizer.zero_grad()
             
@@ -195,8 +215,22 @@ for run in tqdm(range(args.runs)):
                 
             loss.backward()
             optimizer.step()
+            
+        end_time = time.time()
+        training_time = end_time - start_time
+        gpu_mem = get_gpu_memory()
+        cpu_mem = get_cpu_memory()
+        param_count = count_parameters(model)
 
-        print('-' * 40, f'{args.model}: {args.dataset_name} Train Evaluation... ', '-' * 40)
+        result_this_run['training_time_sec'] = round(training_time, 2)
+        result_this_run['gpu_mem_MB'] = round(gpu_mem, 2)
+        result_this_run['cpu_mem_MB'] = round(cpu_mem, 2)
+        result_this_run['param_count'] = param_count
+        
+        print(f"Training Time: {training_time:.2f}s | GPU Peak: {gpu_mem:.1f}MB | CPU: {cpu_mem:.1f}MB | Params: {param_count:,}")
+
+
+        print('-' * 40, f'{args.model}: {args.dataset} Train Evaluation... ', '-' * 40)
         model.eval()
 
         with torch.no_grad():
@@ -207,7 +241,7 @@ for run in tqdm(range(args.runs)):
         train_eval = evaluate_model_performance(train_low_preds, train_upper_preds, train_targets, target=args.target_coverage)
         result_this_run['train_metrics'] = train_eval
         
-        print('-' * 40, f'{args.model}: {args.dataset_name} Test Evaluation... ', '-' * 40)
+        print('-' * 40, f'{args.model}: {args.dataset} Test Evaluation... ', '-' * 40)
         test_data = test_data.to(device)
 
         with torch.no_grad():
@@ -225,9 +259,10 @@ for run in tqdm(range(args.runs)):
         model = GNN_CP(in_dim=in_dim, hidden_dim=args.hidden_dim).to(device)
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
         
-        epochs = []
-        losses = []
-        for epoch in tqdm(range(args.epochs)):
+        torch.cuda.reset_peak_memory_stats()  # GPU peak 메모리 초기화
+        start_time = time.time()    
+        
+        for epoch in range(args.epochs):
             model.train()
             optimizer.zero_grad()
             
@@ -236,11 +271,21 @@ for run in tqdm(range(args.runs)):
             
             loss.backward()
             optimizer.step()
-            
-            epochs.append(epoch+1)
-            losses.append(loss.item())
+
+        end_time = time.time()
+        training_time = end_time - start_time
+        gpu_mem = get_gpu_memory()
+        cpu_mem = get_cpu_memory()
+        param_count = count_parameters(model)
+
+        result_this_run['training_time_sec'] = round(training_time, 2)
+        result_this_run['gpu_mem_MB'] = round(gpu_mem, 2)
+        result_this_run['cpu_mem_MB'] = round(cpu_mem, 2)
+        result_this_run['param_count'] = param_count
         
-        print('-' * 40, f'{args.model}: {args.dataset_name} Train Evaluation... ', '-' * 40)
+        print(f"Training Time: {training_time:.2f}s | GPU Peak: {gpu_mem:.1f}MB | CPU: {cpu_mem:.1f}MB | Params: {param_count:,}")
+
+        print('-' * 40, f'{args.model}: {args.dataset} Train Evaluation... ', '-' * 40)
         model.eval()
         calibration_data = calibration_data.to(device)
         test_data = test_data.to(device)
@@ -259,7 +304,7 @@ for run in tqdm(range(args.runs)):
         train_eval = evaluate_model_performance(train_low_preds, train_upper_preds, train_targets, target=args.target_coverage)
         result_this_run['train_metrics'] = train_eval
         
-        print('-' * 40, f'{args.model}: {args.dataset_name} Test Evaluation... ', '-' * 40)
+        print('-' * 40, f'{args.model}: {args.dataset} Test Evaluation... ', '-' * 40)
         test_low_preds = preds_test - q_hat
         test_upper_preds = preds_test + q_hat
         test_targets = test_data.y.cpu().numpy()
@@ -271,9 +316,10 @@ for run in tqdm(range(args.runs)):
         model = BayesianGNN(in_dim=in_dim, hidden_dim=args.hidden_dim).to(device)
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
         
-        epochs = []
-        losses = []
-        for epoch in tqdm(range(args.epochs)):
+        torch.cuda.reset_peak_memory_stats()  # GPU peak 메모리 초기화
+        start_time = time.time()    
+        
+        for epoch in range(args.epochs):
             model.train()
             optimizer.zero_grad()
             
@@ -282,11 +328,21 @@ for run in tqdm(range(args.runs)):
                 
             loss.backward()
             optimizer.step()
-                    
-            epochs.append(epoch+1)
-            losses.append(loss.item())
-                    
-        print('-' * 40, f'{args.model}: {args.dataset_name} Train Evaluation... ', '-' * 40)
+
+        end_time = time.time()
+        training_time = end_time - start_time
+        gpu_mem = get_gpu_memory()
+        cpu_mem = get_cpu_memory()
+        param_count = count_parameters(model)
+
+        result_this_run['training_time_sec'] = round(training_time, 2)
+        result_this_run['gpu_mem_MB'] = round(gpu_mem, 2)
+        result_this_run['cpu_mem_MB'] = round(cpu_mem, 2)
+        result_this_run['param_count'] = param_count
+        
+        print(f"Training Time: {training_time:.2f}s | GPU Peak: {gpu_mem:.1f}MB | CPU: {cpu_mem:.1f}MB | Params: {param_count:,}")
+                 
+        print('-' * 40, f'{args.model}: {args.dataset} Train Evaluation... ', '-' * 40)
         model.eval()
 
         preds_list = []
@@ -311,7 +367,7 @@ for run in tqdm(range(args.runs)):
         train_eval = evaluate_model_performance(train_low_preds, train_upper_preds, train_targets, target=args.target_coverage)
         result_this_run['train_metrics'] = train_eval
         
-        print('-' * 40, f'{args.model}: {args.dataset_name} Test Evaluation... ', '-' * 40)
+        print('-' * 40, f'{args.model}: {args.dataset} Test Evaluation... ', '-' * 40)
         test_data = test_data.to(device)
 
         preds_list = []
@@ -335,9 +391,10 @@ for run in tqdm(range(args.runs)):
         model = MCDropoutGNN(in_dim=in_dim, hidden_dim=args.hidden_dim, dropout=args.dropout).to(device)
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
 
-        epochs = []
-        losses = []
-        for epoch in tqdm(range(args.epochs)):
+        torch.cuda.reset_peak_memory_stats()  # GPU peak 메모리 초기화
+        start_time = time.time()    
+        
+        for epoch in range(args.epochs):
             model.train()
             optimizer.zero_grad()
             
@@ -346,11 +403,22 @@ for run in tqdm(range(args.runs)):
                 
             loss.backward()
             optimizer.step()
-                    
-            epochs.append(epoch+1)
-            losses.append(loss.item())
-                        
-        print('-' * 40, f'{args.model}: {args.dataset_name} Train Evaluation... ', '-' * 40)
+            
+        end_time = time.time()
+        training_time = end_time - start_time
+        gpu_mem = get_gpu_memory()
+        cpu_mem = get_cpu_memory()
+        param_count = count_parameters(model)
+
+        result_this_run['training_time_sec'] = round(training_time, 2)
+        result_this_run['gpu_mem_MB'] = round(gpu_mem, 2)
+        result_this_run['cpu_mem_MB'] = round(cpu_mem, 2)
+        result_this_run['param_count'] = param_count
+        
+        print(f"Training Time: {training_time:.2f}s | GPU Peak: {gpu_mem:.1f}MB | CPU: {cpu_mem:.1f}MB | Params: {param_count:,}")
+
+                       
+        print('-' * 40, f'{args.model}: {args.dataset} Train Evaluation... ', '-' * 40)
         model.eval()
         
         preds_list = []
@@ -374,7 +442,7 @@ for run in tqdm(range(args.runs)):
         train_eval = evaluate_model_performance(train_low_preds, train_upper_preds, train_targets, target=args.target_coverage)
         result_this_run['train_metrics'] = train_eval
         
-        print('-' * 40, f'{args.model}: {args.dataset_name} Test Evaluation... ', '-' * 40)
+        print('-' * 40, f'{args.model}: {args.dataset} Test Evaluation... ', '-' * 40)
         test_data = test_data.to(device)
         
         preds_list = []
@@ -398,8 +466,11 @@ for run in tqdm(range(args.runs)):
         model = GQNN(in_dim=in_dim, hidden_dim=args.hidden_dim).to(device)
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
         criterion = GQNNLoss(target_coverage=args.target_coverage, lambda_factor=args.lambda_factor)
+
+        torch.cuda.reset_peak_memory_stats()  # GPU peak 메모리 초기화
+        start_time = time.time()    
         
-        for epoch in tqdm(range(args.epochs)):
+        for epoch in range(args.epochs):
             model.train()
             optimizer.zero_grad()
             
@@ -410,8 +481,21 @@ for run in tqdm(range(args.runs)):
             optimizer.step()
             
             cvg, wdt = coverage_width(train_data.y, preds_low, preds_upper)
-            
-        print('-' * 40, f'{args.model}: {args.dataset_name} Train Evaluation... ', '-' * 40)
+
+        end_time = time.time()
+        training_time = end_time - start_time
+        gpu_mem = get_gpu_memory()
+        cpu_mem = get_cpu_memory()
+        param_count = count_parameters(model)
+
+        result_this_run['training_time_sec'] = round(training_time, 2)
+        result_this_run['gpu_mem_MB'] = round(gpu_mem, 2)
+        result_this_run['cpu_mem_MB'] = round(cpu_mem, 2)
+        result_this_run['param_count'] = param_count
+        
+        print(f"Training Time: {training_time:.2f}s | GPU Peak: {gpu_mem:.1f}MB | CPU: {cpu_mem:.1f}MB | Params: {param_count:,}")
+    
+        print('-' * 40, f'{args.model}: {args.dataset} Train Evaluation... ', '-' * 40)
         model.eval()
 
         with torch.no_grad():
@@ -422,7 +506,7 @@ for run in tqdm(range(args.runs)):
         train_eval = evaluate_model_performance(train_low_preds, train_upper_preds, train_targets, target=args.target_coverage)
         result_this_run['train_metrics'] = train_eval
         
-        print('-' * 40, f'{args.model}: {args.dataset_name} Test Evaluation... ', '-' * 40)
+        print('-' * 40, f'{args.model}: {args.dataset} Test Evaluation... ', '-' * 40)
         test_data = test_data.to(device)
 
         with torch.no_grad():
@@ -438,8 +522,11 @@ for run in tqdm(range(args.runs)):
         model = GQNN(in_dim=in_dim, hidden_dim=args.hidden_dim).to(device)
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
         criterion = GQNNLoss2(target_coverage=args.target_coverage, lambda_width=args.lambda_factor) # 고정
+
+        torch.cuda.reset_peak_memory_stats()  # GPU peak 메모리 초기화
+        start_time = time.time()    
         
-        for epoch in tqdm(range(args.epochs)):
+        for epoch in range(args.epochs):
             model.train()
             optimizer.zero_grad()
             
@@ -450,8 +537,21 @@ for run in tqdm(range(args.runs)):
             optimizer.step()
             
             cvg, wdt = coverage_width(train_data.y, preds_low, preds_upper)
-            
-        print('-' * 40, f'{args.model}: {args.dataset_name} Train Evaluation... ', '-' * 40)
+
+        end_time = time.time()
+        training_time = end_time - start_time
+        gpu_mem = get_gpu_memory()
+        cpu_mem = get_cpu_memory()
+        param_count = count_parameters(model)
+
+        result_this_run['training_time_sec'] = round(training_time, 2)
+        result_this_run['gpu_mem_MB'] = round(gpu_mem, 2)
+        result_this_run['cpu_mem_MB'] = round(cpu_mem, 2)
+        result_this_run['param_count'] = param_count
+        
+        print(f"Training Time: {training_time:.2f}s | GPU Peak: {gpu_mem:.1f}MB | CPU: {cpu_mem:.1f}MB | Params: {param_count:,}")
+         
+        print('-' * 40, f'{args.model}: {args.dataset} Train Evaluation... ', '-' * 40)
         model.eval()
 
         with torch.no_grad():
@@ -462,7 +562,7 @@ for run in tqdm(range(args.runs)):
         train_eval = evaluate_model_performance(train_low_preds, train_upper_preds, train_targets, target=args.target_coverage)
         result_this_run['train_metrics'] = train_eval
         
-        print('-' * 40, f'{args.model}: {args.dataset_name} Test Evaluation... ', '-' * 40)
+        print('-' * 40, f'{args.model}: {args.dataset} Test Evaluation... ', '-' * 40)
         test_data = test_data.to(device)
 
         with torch.no_grad():
@@ -483,7 +583,7 @@ for run in tqdm(range(args.runs)):
         with PdfPages(new_pdf) as pdf:
             fig, axes = plt.subplots(1, 2, figsize=(16, 4))  
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M") 
-            plt.suptitle(f"Model: {args.model}, Dataset: {args.dataset_name}, Time: {timestamp} (Train)", fontsize=12, fontweight='bold')
+            plt.suptitle(f"Model: {args.model}, Dataset: {args.dataset}, Time: {timestamp} (Train)", fontsize=12, fontweight='bold')
 
             axes[0].scatter(range(len(x_st)), y_st, alpha=0.3, color='blue', label="True Values", s=15)
             axes[0].fill_between(range(len(x_st)), low_r_st, upper_r_st, color=color, alpha=0.5)
@@ -514,7 +614,7 @@ for run in tqdm(range(args.runs)):
         
         with PdfPages(new_pdf) as pdf:
             fig, axes = plt.subplots(1, 2, figsize=(16, 4))  
-            plt.suptitle(f"Model: {args.model}, Dataset: {args.dataset_name}, Time: {timestamp} (Test)", fontsize=12, fontweight='bold')
+            plt.suptitle(f"Model: {args.model}, Dataset: {args.dataset}, Time: {timestamp} (Test)", fontsize=12, fontweight='bold')
 
             axes[0].scatter(range(len(x_st)), y_st, alpha=0.3, color='blue', label="True Values", s=15)
             axes[0].fill_between(range(len(x_st)), low_r_st, upper_r_st, color=color, alpha=0.5)
@@ -544,7 +644,6 @@ for run in tqdm(range(args.runs)):
     results[run] = result_this_run
     print(f'Finished training {run} run!')
 
-
-print('Saving results to', './result/eval' + file_name +'.pkl')
-with open('./pred/' + file_name +'.pkl', 'wb') as f:
+print('Saving results to', root_dir + file_name +'.pkl')
+with open(root_dir + file_name +'.pkl', 'wb') as f:
     pickle.dump(results, f)

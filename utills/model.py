@@ -214,11 +214,7 @@ class GQNNLoss(nn.Module):
         # 최종 손실: 샘플 손실 + 커버리지 패널티 + 폭 패널티
         return mean_sample_loss + coverage_penalty + width_loss
     
-<<<<<<< HEAD
 class GQNNLoss2(nn.Module): 
-=======
-class GQNNLoss2(nn.Module):
->>>>>>> cc00178c249c6e8251fa1c42c9c428f114d0af43
     def __init__(self, lambda_width=0.1, target_coverage=0.9, beta=10.0):
         super().__init__()
         self.target_coverage = target_coverage  # 목표 커버리지
@@ -226,10 +222,6 @@ class GQNNLoss2(nn.Module):
         self.beta = beta                        # 시그모이드 근사 강도 (클수록 지시 함수에 가까워짐)
     
     def soft_coverage(self, preds_low, preds_upper, target):
-<<<<<<< HEAD
-=======
-        """부드러운 커버리지 근사"""
->>>>>>> cc00178c249c6e8251fa1c42c9c428f114d0af43
         # preds_low <= target <= preds_upper를 시그모이드로 근사
         lower_bound = torch.sigmoid(self.beta * (target - preds_low))  # target >= preds_low
         upper_bound = torch.sigmoid(self.beta * (preds_upper - target))  # target <= preds_upper

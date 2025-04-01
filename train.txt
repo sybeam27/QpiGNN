@@ -1,2 +1,0 @@
-# CF-GNN
-python cf_train.py --dataset Anaheim --hidden_channels 64 --model "GraphSAGE" --alpha 0.1 --epochs 100 --num_runs 1 --device "cuda:0"

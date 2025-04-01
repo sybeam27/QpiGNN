@@ -3,6 +3,7 @@ import os.path as osp
 from tqdm import tqdm
 import torch
 import torch.nn.functional as F
+import torch_geometric.transforms as T
 import torch.nn as nn
 import numpy as np
 import pandas as pd
@@ -11,7 +12,7 @@ import os
 import pickle
 import sys
 from utills.function import generate_graph_data, generate_noisy_graph_data, load_county_graph_data, load_twitch_graph_data, \
-            load_wiki_graph_data, load_trans_graph_data, create_ba_graph_pyg, create_er_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg, evaluate_model_performance
+            load_wiki_graph_data, load_trans_graph_data, create_ba_graph_pyg, create_er_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg
      
 from torch_geometric.datasets import Amazon, Coauthor, CitationFull
 from torch_geometric.logging import log
@@ -22,11 +23,25 @@ from conformalized_gnn.model import GNN, ConfGNN, ConfMLP
 from conformalized_gnn.calibrator import TS, VS, ETS, CaGCN, GATS
 from conformalized_gnn.conformal import run_conformal_classification, run_conformal_regression
 
+import time
+import psutil
+
+def get_gpu_memory():
+    if torch.cuda.is_available():
+        return torch.cuda.max_memory_allocated() / (1024 ** 2)  # MB
+    return 0
+
+def get_cpu_memory():
+    return psutil.Process().memory_info().rss / (1024 ** 2)  # MB
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='county_education_2012')
                     # , choices = ['Cora_ML_CF', 'CiteSeer_CF', 'DBLP_CF', 'PubMed_CF', 'Amazon-Computers', 'Amazon-Photo', 'Coauthor-CS', 'Coauthor-Physics', 'Anaheim', 'ChicagoSketch', 'county_education_2012', 'county_election_2016', 'county_income_2012', 'county_unemployment_2012', 'twitch_PTBR'])
-parser.add_argument('--hidden_channels', type=int, default=16)
-parser.add_argument('--model', type=str, default='GCN', choices = ['GAT', 'GCN', 'GraphSAGE', 'SGC'])
+parser.add_argument('--hidden_channels', type=int, default=64)
+parser.add_argument('--model', type=str, default='GraphSAGE', choices = ['GAT', 'GCN', 'GraphSAGE', 'SGC'])
 parser.add_argument('--heads', type=int, default=1)
 parser.add_argument('--aggr', type=str, default='sum')
 parser.add_argument('--alpha', type=float, default=0.1)
@@ -68,12 +83,6 @@ parser.add_argument('--verbose', action='store_true', default = False)
 parser.add_argument('--data_seed', type=int, default=0)
 parser.add_argument('--optimal', action='store_true', default = False)
 parser.add_argument('--cond_cov_loss', action='store_true', default = False)
-parser.add_argument('--conformal_training', action='store_true', default = False)
-
-parser.add_argument('--ablation', type=str, default='NULL', choices = ['NULL','mlp_conf_loss', 
-                                                                      'gnn_no_conf_loss', 
-                                                                      'Calibrate'
-                                                                      ])
 
 parser.add_argument('--calib_fraction', type=float, default=0.5)
 parser.add_argument('--optimize_conformal_score', type=str, default='aps', choices = ['aps', 'raps'])
@@ -85,24 +94,6 @@ global task
 # 추가한 부분
 task = 'regression'
 metric = 'eff_valid_cqr'
-
-# if args.dataset in ['Anaheim', 
-#                     'ChicagoSketch',  
-#                     'county_education_2012', 
-#                     'county_election_2016',
-#                     'county_income_2012',
-#                     'county_unemployment_2012',
-#                     'twitch_PTBR']:
-#     task = 'regression'
-#     metric = 'eff_valid_cqr'
-#     if args.conformal_score != 'cqr':
-#         raise ValueError('For regression task, the training conformal score should be cqr!')
-# else:    
-#     task = 'classification'
-#     if args.optimize_conformal_score == 'raps':
-#         metric = 'eff_valid_raps'
-#     else:
-#         metric = 'eff_valid_aps'
     
 if args.optimal:
     print('Loading optimal set of parameters...')
@@ -112,16 +103,10 @@ if args.optimal:
     args.conf_correct_model = 'gnn'
     args.conftr = True
     args.conftr_calib_holdout = True
-    if task == 'classification':
-        args.conformal_score = 'aps'
-        if args.optimize_conformal_score == 'raps':
-            metric = 'eff_valid_raps'
-        else:
-            metric = 'eff_valid_aps'
-    else:
-        args.conformal_score = 'cqr'
-        args.quantile = True
-        metric = 'eff_valid_cqr'
+
+    args.conformal_score = 'cqr'
+    args.quantile = True
+    metric = 'eff_valid_cqr'
     
     if args.optimize_conformal_score == 'raps':
         with open('./params/optimal_param_set_raps.pkl', 'rb') as f:
@@ -133,40 +118,20 @@ if args.optimal:
 
     optimal_parameter = optimal_set[args.model][args.dataset]
     
-    #print(args)
-    
     d = vars(args)   
     for i, j in optimal_parameter.items():
         d[i] = j
         print(str(i) + ' set to ' + str(j))   
-
-    #print(args)
     
 if args.bnn or (task == 'classification'):
     args.quantile = False
 else:    
     args.quantile = True 
     
-if args.ablation == 'mlp_conf_loss':
-    args.conf_correct_model = 'mlp'
-elif args.ablation == 'gnn_no_conf_loss':
-    args.conftr = False
-    args.conftr_calib_holdout = False
-elif args.ablation == 'TS':
-    args.conf_correct_model = 'TS'
-    args.conftr_calib_holdout = False
-        
-if args.conformal_training:
-    args.conftr_calib_holdout = False
-    args.conftr_holdout = False
-    args.conftr_valid_holdout = False
-    
 device = torch.device(args.device)
     
 if args.optimal:
-    name = 'optimal_' + args.dataset + '_' + args.model
-    if args.ablation != 'NULL':
-        name += '_ablation_' + args.ablation   
+    name = 'optimal_' + args.dataset + '_' + args.model 
     if args.calib_fraction != 0.5:
         name += '_calib_fraction_' + str(args.calib_fraction)
 else:
@@ -235,7 +200,6 @@ def train(epoch, model, data, optimizer, alpha):
         return float(loss)
     else:
         return float(loss)
-
 
 @torch.no_grad()
 def test(model, data, alpha, tau, target_size, size_loss = False):
@@ -321,65 +285,32 @@ def test(model, data, alpha, tau, target_size, size_loss = False):
     
     
 def main(args):
-    #print(args)
-    import torch_geometric.transforms as T
-
-    # if args.dataset in ['Cora_CF', 'Cora_ML_CF', 'CiteSeer_CF', 'DBLP_CF', 'PubMed_CF']:
-    #     path = osp.join('data', 'CitationFull')
-    #     dataset = CitationFull(path, args.dataset[:-3], transform=T.NormalizeFeatures())
-    #     data = dataset[0]
-    # elif args.dataset in ['Amazon-Computers', 'Amazon-Photo']:
-    #     path = osp.join('data', 'Amazon')
-    #     dataset = Amazon(path, args.dataset.split('-')[1], transform=T.NormalizeFeatures())
-    #     data = dataset[0]
-    # elif args.dataset in ['Coauthor-CS', 'Coauthor-Physics']:
-    #     path = osp.join('data', 'coauthor')
-    #     dataset = Coauthor(path, args.dataset.split('-')[1], transform=T.NormalizeFeatures())
-    #     data = dataset[0]
-    # else:
-        # edges = pd.read_csv('./dataset_regression/' + args.dataset + '_edge_list.txt', sep = '\t', header = None) -1
-        # feats = pd.read_csv('./dataset_regression/' + args.dataset + '_features.txt', sep = '\t', header = None)
-        # labels = pd.read_csv('./dataset_regression/' + args.dataset + '_labels.txt', sep = '\t', header = None)
-        
-    if args.dataset == 'basic':
-        graph_data = generate_graph_data(num_nodes=args.nodes)
-    elif args.dataset in ('gaussian', 'uniform', 'outlier', 'edge'):
-        graph_data = generate_noisy_graph_data(num_nodes=args.nodes, noise_type=args.dataset, noise_level=args.noise)
-    elif args.dataset in ('education', 'election', 'income', 'unemployment'):
-        graph_data = load_county_graph_data(args.dataset, 2012)
-    elif args.dataset in ('DE', 'ENGB', 'ES', 'FR', 'PTBR', 'RU'):
-        graph_data = load_twitch_graph_data(args.dataset)
-    elif args.dataset in ('chameleon', 'crocodile', 'squirrel'):
-        graph_data = load_wiki_graph_data(args.dataset)
-    elif args.dataset in ('Anaheim', 'ChicagoSketch'):
-        graph_data = load_trans_graph_data(args.dataset)
-    elif args.dataset == 'BA':
-        graph_data = create_ba_graph_pyg(n=args.nodes)
-    elif args.dataset == 'ER':
-        graph_data = create_er_graph_pyg(n=args.nodes)
-    elif args.dataset == 'grid':
-        graph_data = create_grid_graph_pyg()
-    elif args.dataset == 'tree':
-        graph_data = create_tree_graph_pyg()
+    if args.dataset != '':
+        if args.dataset == 'basic':
+            graph_data = generate_graph_data(num_nodes=args.nodes)
+        elif args.dataset in ('gaussian', 'uniform', 'outlier', 'edge'):
+            graph_data = generate_noisy_graph_data(num_nodes=args.nodes, noise_type=args.dataset, noise_level=args.noise)
+        elif args.dataset in ('education', 'election', 'income', 'unemployment'):
+            graph_data = load_county_graph_data(args.dataset, 2012)
+        elif args.dataset in ('DE', 'ENGB', 'ES', 'FR', 'PTBR', 'RU'):
+            graph_data = load_twitch_graph_data(args.dataset)
+        elif args.dataset in ('chameleon', 'crocodile', 'squirrel'):
+            graph_data = load_wiki_graph_data(args.dataset)
+        elif args.dataset in ('Anaheim', 'ChicagoSketch'):
+            graph_data = load_trans_graph_data(args.dataset)
+        elif args.dataset == 'BA':
+            graph_data = create_ba_graph_pyg(n=args.nodes)
+        elif args.dataset == 'ER':
+            graph_data = create_er_graph_pyg(n=args.nodes)
+        elif args.dataset == 'grid':
+            graph_data = create_grid_graph_pyg()
+        elif args.dataset == 'tree':
+            graph_data = create_tree_graph_pyg()
         
     data = Data(x=graph_data.x, edge_index=graph_data.edge_index, y=graph_data.y)
     x = data.x
     y = data.y
         
-        # edge_index = torch.tensor(edges[[0, 1]].values.T, dtype=torch.long)
-        # x = torch.tensor(feats.values, dtype=torch.float)
-        # y = torch.tensor(labels.values, dtype=torch.float)
-        # data = Data(x=x, edge_index=edge_index,y=y)
-
-    # if task == 'classification':
-    #     y = data.y.detach().cpu().numpy()
-    #     idx = np.array(range(len(y)))
-    #     np.random.seed(args.data_seed)
-    #     np.random.shuffle(idx)
-    #     split_res = np.split(idx, [int(0.2 * len(idx)), int(0.3 * len(idx)), len(idx)])
-    #     train_idx, valid, calib_test = split_res[0], split_res[1], split_res[2]
-    # elif task == 'regression':
-    
     idx = np.array(range(len(y)))  
     np.random.seed(args.data_seed)
     np.random.shuffle(idx)
@@ -406,16 +337,6 @@ def main(args):
      
     for run in tqdm(range(args.num_runs)):
         result_this_run = {}
-
-        if args.quantile:
-            if args.alpha == 0.1:
-                model_checkpoint = './model/' + args.model + '_' + args.dataset + '_' + str(run+1) + '_quantile_0410.pt'
-            else:
-                model_checkpoint = './model/' + args.model + '_' + args.dataset + '_' + str(run+1) + '_quantile_' + str(args.alpha) + '_0410.pt'
-        elif args.bnn:
-            model_checkpoint = './model/' + args.model + '_' + args.dataset + '_' + str(run+1) + '_bnn_' + str(args.alpha) + '_0410.pt'
-        else:
-            model_checkpoint = './model/' + args.model + '_' + args.dataset + '_' + str(run+1) + '_0410.pt'
         
         if args.quantile:
             output_dim = 3
@@ -427,10 +348,14 @@ def main(args):
 
         print('training base model from scratch...')
         model = GNN(num_features, args.hidden_channels, output_dim, args.model, args.heads, args.aggr)    
-
+        
+        # 추가한 코드
+        torch.cuda.reset_peak_memory_stats()
+        start_time = time.time()
+        
         model, data = model.to(device), data.to(device)
         optimizer = torch.optim.Adam([
-            dict(params=model.conv1.parameters(), weight_decay=5e-4),
+            dict(params=model.conv1.parameters(), weight_decay=1e-3),
             dict(params=model.conv2.parameters(), weight_decay=0)
         ], lr=args.lr)  # Only perform weight-decay on first convolution.
 
@@ -466,6 +391,13 @@ def main(args):
         
         result_this_run['gnn'] = {}
         
+        # 추가한 코드
+        end_time = time.time()
+        result_this_run['gnn']['training_time_sec'] = round(end_time - start_time, 2)
+        result_this_run['gnn']['gpu_mem_MB'] = round(get_gpu_memory(), 2)
+        result_this_run['gnn']['cpu_mem_MB'] = round(get_cpu_memory(), 2)
+        result_this_run['gnn']['param_count'] = count_parameters(model)
+
         if args.bnn:
             pred = pred.detach().cpu().numpy()
             pred_all = pred[:, 0].reshape(-1)
@@ -476,19 +408,14 @@ def main(args):
         
         if task == 'regression':
             result_this_run['gnn']['CQR'] = run_conformal_regression(pred, data, n, alpha, calib_eval = False)
-        # else:
-        #     result_this_run['gnn']['APS'] = run_conformal_classification(pred, data, n, alpha, score = 'aps', calib_eval = False)
-        #     result_this_run['gnn']['RAPS'] = run_conformal_classification(pred, data, n, alpha, score = 'raps', calib_eval = False)
-        
+
         condcov_epochs = []
         result_this_run['conf_gnn'] = {}
  
         model_to_correct = copy.deepcopy(model)
         if args.conf_correct_model == 'gnn':
             confmodel = ConfGNN(model_to_correct, data, args, num_conf_layers, base_model, output_dim, task).to(args.device)
-        elif args.conf_correct_model == 'mlp':
-            confmodel = ConfMLP(model_to_correct, data, output_dim, task).to(args.device)
-        optimizer = torch.optim.Adam(confmodel.parameters(), weight_decay=5e-4, lr=args.confgnn_lr)  # Only perform weight-decay on first convolution.
+        optimizer = torch.optim.Adam(confmodel.parameters(), weight_decay=1e-3, lr=args.confgnn_lr)  # Only perform weight-decay on first convolution.
         pred_loss_hist, size_loss_hist, cons_loss_hist, val_size_loss_hist = [], [], [], []
         best_size_loss = 10000
         best_val_acc = 0
@@ -541,6 +468,11 @@ def main(args):
                 train_test_idx = train_train_idx
         
         print('Starting topology-aware conformal correction...')
+
+        # 추가한 코드
+        torch.cuda.reset_peak_memory_stats()
+        start_time = time.time()
+        
         for epoch in range(1, args.epochs + 1):  
             if (not args.conftr_holdout) and (not args.conftr_calib_holdout) and (not args.conftr_valid_holdout):
                 train_idx = np.where(data.train_mask)[0]
@@ -664,37 +596,60 @@ def main(args):
 
         result_this_run['conf_gnn'] = {}
         
+        # 추가한 코드
+        end_time = time.time()
+        result_this_run['conf_gnn']['training_time_sec'] = round(end_time - start_time, 2)
+        result_this_run['conf_gnn']['gpu_mem_MB'] = round(get_gpu_memory(), 2)
+        result_this_run['conf_gnn']['cpu_mem_MB'] = round(get_cpu_memory(), 2)
+        result_this_run['conf_gnn']['param_count'] = count_parameters(confmodel)
+        
+        print(f"[Base Model] Time: {result_this_run['gnn']['training_time_sec']}s | GPU: {result_this_run['gnn']['gpu_mem_MB']}MB | Params: {result_this_run['gnn']['param_count']}")
+        print(f"[ConfGNN] Time: {result_this_run['conf_gnn']['training_time_sec']}s | GPU: {result_this_run['conf_gnn']['gpu_mem_MB']}MB | Params: {result_this_run['conf_gnn']['param_count']}")
+        
+        result_this_run['total'] = {
+        'training_time_sec': result_this_run['gnn']['training_time_sec'] + result_this_run['conf_gnn']['training_time_sec'],
+        'gpu_mem_MB': max(result_this_run['gnn']['gpu_mem_MB'], result_this_run['conf_gnn']['gpu_mem_MB']),  # peak 기준
+        'param_count': result_this_run['gnn']['param_count'] + result_this_run['conf_gnn']['param_count']
+        }
+            
         if task == 'regression':
             result_this_run['conf_gnn']['CQR'] = run_conformal_regression(best_pred, data, n, alpha, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
             result_this_run['conf_gnn']['eff_valid'] = run_conformal_regression(best_pred, data, n, alpha, validation_set = True)[1]
             
-            # 추가한 코드
-            # best_pred: (N, 3) ndarray or tensor → 예측 평균, 하한, 상한 포함된 예측 결과
-            pred_np = best_pred.detach().cpu().numpy()
+            # 추가한 평가 코드
+            print('-' * 40, f'CF-GNN: {args.dataset} Train Evaluation... ', '-' * 40)
+            result_this_run['train_metrics'] = run_conformal_regression(best_pred, data, n, alpha, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction, 
+                                                                        train_set=True, evaluate=True, target = 1-alpha)
+            print('-' * 40, f'CF-GNN: {args.dataset} Test Evaluation... ', '-' * 40)
+            result_this_run['test_metrics'] = run_conformal_regression(best_pred, data, n, alpha, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction, 
+                                                                       evaluate=True, target = 1-alpha) 
+            # # 추가한 코드
+            # # best_pred: (N, 3) ndarray or tensor → 예측 평균, 하한, 상한 포함된 예측 결과
+            # pred_np = best_pred.detach().cpu().numpy()
 
-            # 예측 구간 분리
-            lower = pred_np[:, 1]  # 하한
-            upper = pred_np[:, 2]  # 상한
-            print("하한이 상한보다 작아야 함:", np.all(lower <= upper))
+            # # 예측 구간 분리
+            # lower = pred_np[:, 1]  # 하한
+            # upper = pred_np[:, 2]  # 상한
+            # print("하한이 상한보다 작아야 함:", np.all(lower <= upper))
 
-            targets_all = data.y.detach().cpu().numpy()
-            train_mask = data.train_mask
-            test_mask = data.calib_test_mask if hasattr(data, 'calib_test_mask') else data.valid_mask
+            # targets_all = data.y.detach().cpu().numpy()
+            # train_mask = data.train_mask
+            # test_mask = data.calib_test_mask if hasattr(data, 'calib_test_mask') else data.valid_mask
 
-            train_preds_low = lower[train_mask]
-            train_preds_up = upper[train_mask]
-            train_targets = targets_all[train_mask]
+            # train_preds_low = lower[train_mask]
+            # train_preds_up = upper[train_mask]
+            # train_targets = targets_all[train_mask]
 
-            train_metrics = evaluate_model_performance(train_preds_low, train_preds_up, train_targets, target=args.alpha)
+            # train_metrics = evaluate_model_performance(train_preds_low, train_preds_up, train_targets, target=args.alpha)
 
-            test_preds_low = lower[test_mask]
-            test_preds_up = upper[test_mask]
-            test_targets = targets_all[test_mask]
+            # test_preds_low = lower[test_mask]
+            # test_preds_up = upper[test_mask]
+            # test_targets = targets_all[test_mask]
 
-            test_metrics = evaluate_model_performance(test_preds_low, test_preds_up, test_targets, target=args.alpha)
+            # test_metrics = evaluate_model_performance(test_preds_low, test_preds_up, test_targets, target=args.alpha)
 
-            result_this_run['train_metrics'] = train_metrics
-            result_this_run['test_metrics'] = test_metrics
+            # result_this_run['train_metrics'] = train_metrics
+            # result_this_run['test_metrics'] = test_metrics
             
         else:
             result_this_run['conf_gnn']['APS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'aps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
@@ -705,11 +660,11 @@ def main(args):
         tau2res[run] = result_this_run
         print('Finished training this run!')
       
-    if not os.path.exists('./pred'):
-        os.mkdir('./pred')
+    if not os.path.exists('./pred_cfgnn'):
+        os.mkdir('./pred_cfgnn')
     if not args.not_save_res:
-        print('Saving results to', './pred/' + name +'.pkl')
-        with open('./pred/' + name +'.pkl', 'wb') as f:
+        print('Saving results to', './pred_cfgnn/' + name +'.pkl')
+        with open('./pred_cfgnn/' + name +'.pkl', 'wb') as f:
             pickle.dump(tau2res, f)
         
         

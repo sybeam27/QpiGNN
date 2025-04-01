@@ -151,7 +151,10 @@ def run_conformal_classification(pred, data, n, alpha, score = 'aps',
     else:
         return np.mean(cov_all), np.mean(eff_all)
 
-def run_conformal_regression(pred, data, n, alpha, calib_eval = False, validation_set = False, use_additional_calib = False, return_prediction_sets = False, calib_fraction = 0.5, score = 'cqr'): 
+def run_conformal_regression(pred, data, n, alpha, 
+                             calib_eval = False, validation_set = False, use_additional_calib = False, return_prediction_sets = False, 
+                             train_set = False, evaluate = False, target = 0.9, # 추가한 부분
+                             calib_fraction = 0.5, score = 'cqr'): 
     if calib_eval:
         n_base = int(n * (1-calib_fraction))
     else:
@@ -166,6 +169,10 @@ def run_conformal_regression(pred, data, n, alpha, calib_eval = False, validatio
         smx = pred[data.valid_mask]
         labels = data.y[data.valid_mask].detach().cpu().numpy().reshape(-1)
         n_base = int(len(np.where(data.valid_mask)[0])/2)
+    elif train_set:
+        smx = pred[data.train_mask]
+        labels = data.y[data.train_mask].detach().cpu().numpy().reshape(-1)
+        n_base = int(len(np.where(data.train_mask)[0]) / 2)
     else:
         if calib_eval:
             smx = pred[data.calib_test_real_mask]
@@ -176,10 +183,12 @@ def run_conformal_regression(pred, data, n, alpha, calib_eval = False, validatio
     
     cov_all = []
     eff_all = []
-    if return_prediction_sets:
+    
+    if return_prediction_sets or evaluate:
         pred_set_all = []
         val_labels_all = []
         idx_all = []
+    
     for k in range(100):
         upper, lower = smx[:, 2], smx[:, 1]
 
@@ -196,14 +205,57 @@ def run_conformal_regression(pred, data, n, alpha, calib_eval = False, validatio
         elif score == 'qr':
             prediction_sets, cov, eff = qr(cal_labels, cal_lower, cal_upper, val_labels, val_lower, val_upper, n, alpha)
             
-        
         cov_all.append(cov)
         eff_all.append(eff)
-        if return_prediction_sets:
+        
+        if return_prediction_sets or evaluate:
             pred_set_all.append(prediction_sets)
             val_labels_all.append(val_labels)
+            
+    if evaluate:
+        preds_low = np.array(pred_set_all[0][0])
+        preds_upper = np.array(pred_set_all[0][1])
+        targets = np.array(val_labels_all[0])
+        
+        picp = np.mean((targets >= preds_low) & (targets <= preds_upper))
+        interval_width = np.mean(preds_upper - preds_low)
+        data_range = np.max(targets) - np.min(targets)
+        nmpiw = interval_width / data_range if data_range > 0 else interval_width  # 범위가 0일 경우 대비
+        median_pred = (preds_low + preds_upper) / 2   
+        mpe = np.mean(np.abs(median_pred - targets))
+        sharpness = np.mean(np.square(preds_upper - preds_low))
+        
+        alpha = 0.5
+        penalties = np.where(targets < preds_low, preds_low - targets, 
+                         np.where(targets > preds_upper, targets - preds_upper, 0))
+        winkler = np.mean(interval_width + 2 * alpha * penalties)
+        
+        mct = interval_width * abs(picp - target)
+        gamma = 1
+        eta = 10
+        penalty = 1 + gamma * np.exp(-eta * (picp - target))
+        cwc = nmpiw * penalty
+        
+        print(f"종합 - CWC ⬇: {cwc:.4f}, MCT ⬇: {mct:.4f}")
+        print(f"예측 관련 - PICP ⬆: {picp:.4f}, MPE ⬇: {mpe:.4f}")
+        print(f"구간 관련 - NMPIW ⬇: {nmpiw:.4f}, Sharpness ⬇: {sharpness:.4f}, WS ⬇: {winkler:.4f}")
+
+        metrics = {
+        "PCIP": picp,
+        'MPIW': interval_width, 
+        "NMPIW": nmpiw,
+        "MCT": mct,
+        "CWC": cwc,
+        "MPE": mpe,
+        "Sharpness": sharpness,
+        "WS": winkler
+        }
     
     if return_prediction_sets:
         return cov_all, eff_all, pred_set_all, val_labels_all, idx_all
     else:
-        return np.mean(cov_all), np.mean(eff_all)
+        if evaluate:
+            return metrics
+        else:
+            return np.mean(cov_all), np.mean(eff_all)
+    

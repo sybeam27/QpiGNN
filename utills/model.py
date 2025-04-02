@@ -58,20 +58,7 @@ class GQNN_N(nn.Module):
         x = F.relu(self.conv2(x, edge_index))
         
         return self.fc(x)
-    
-class GNN_CP(nn.Module):
-    def __init__(self, in_dim, hidden_dim):
-        super().__init__()
-        self.conv1 = SAGEConv(in_dim, hidden_dim)
-        self.conv2 = SAGEConv(hidden_dim, hidden_dim)
-        self.fc = nn.Linear(hidden_dim, 1)
-    
-    def forward(self, x, edge_index):
-        x = F.relu(self.conv1(x, edge_index))
-        x = F.relu(self.conv2(x, edge_index))
         
-        return self.fc(x)
-    
 class QRLoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -245,3 +232,16 @@ class GQNNLoss2(nn.Module):
         # 4. 최종 손실
         total_loss = sample_loss + coverage_penalty + width_penalty
         return total_loss
+    
+# class GNN_CP(nn.Module):
+#     def __init__(self, in_dim, hidden_dim):
+#         super().__init__()
+#         self.conv1 = SAGEConv(in_dim, hidden_dim)
+#         self.conv2 = SAGEConv(hidden_dim, hidden_dim)
+#         self.fc = nn.Linear(hidden_dim, 1)
+    
+#     def forward(self, x, edge_index):
+#         x = F.relu(self.conv1(x, edge_index))
+#         x = F.relu(self.conv2(x, edge_index))
+        
+#         return self.fc(x)

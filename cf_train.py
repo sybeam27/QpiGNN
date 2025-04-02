@@ -116,7 +116,21 @@ if args.optimal:
         with open('./params/optimal_param_set.pkl', 'rb') as f:
             optimal_set = pickle.load(f)
 
-    optimal_parameter = optimal_set[args.model][args.dataset]
+    # 추가한 부분
+    if args.dataset == 'Anaheim' or args.dataset == 'ChicagoSketch':
+        dt = args.dataset
+    elif args.dataset == 'education':
+        dt = 'county_education_2012'
+    elif args.dataset == 'election':
+        dt = 'county_election_2016'
+    elif args.dataset == 'income':
+        dt = 'county_income_2012'
+    elif args.dataset == 'unemployment':
+        dt = 'county_unemployment_2012'
+    elif args.dataset == 'PTBR':
+        dt = 'twitch_PTBR'
+    
+    optimal_parameter = optimal_set[args.model][dt]
     
     d = vars(args)   
     for i, j in optimal_parameter.items():

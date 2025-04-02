@@ -83,7 +83,6 @@ class GNN_Multi_Layer(torch.nn.Module):
                 x = conv(x, edge_index, edge_weight).relu()
         return x
     
-    
 class SimpleMLP(torch.nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(SimpleMLP, self).__init__()
@@ -97,7 +96,6 @@ class SimpleMLP(torch.nn.Module):
         h     = self.ReLU(self.FC_hidden2(h))
         x_hat = self.FC_output(h)
         return x_hat
-    
     
 class ConfGNN(torch.nn.Module):
     def __init__(self, model, dataset, args, num_conf_layers, base_model, output_dim, task):
@@ -117,7 +115,6 @@ class ConfGNN(torch.nn.Module):
         adjust_scores = self.confgnn(out, edge_index)
         return adjust_scores, scores
 
-    
 class ConfMLP(torch.nn.Module):
     def __init__(self, model, dataset, output_dim, task):
         super().__init__()
@@ -135,7 +132,6 @@ class ConfMLP(torch.nn.Module):
             out = F.softmax(scores, dim = 1)
         adjust_scores = self.confmlp(out)
         return adjust_scores, scores
-    
     
 def fit_calibration(temp_model, eval, data, train_mask, test_mask, patience = 100):
     """
@@ -179,7 +175,6 @@ def fit_calibration(temp_model, eval, data, train_mask, test_mask, patience = 10
     model_dict.update(state_dict_early_model)
     temp_model.load_state_dict(model_dict)
     
-    
 class TS(nn.Module):
     def __init__(self, model, device):
         super().__init__()
@@ -207,7 +202,6 @@ class TS(nn.Module):
         self.optimizer = torch.optim.Adam(self.train_param, lr=0.01, weight_decay=wdecay)
         fit_calibration(self, eval, data, train_mask, test_mask)
         return self
-    
     
 class CaGCN(nn.Module):
     def __init__(self, model, num_nodes, num_class, dropout_rate, device):
@@ -239,7 +233,6 @@ class CaGCN(nn.Module):
         self.optimizer = optim.Adam(self.train_param, lr=0.01, weight_decay=wdecay)
         fit_calibration(self, eval, data, train_mask, test_mask)
         return self
-    
     
 from typing import Union, Optional
 from torch_geometric.typing import OptPairTensor, Adj, OptTensor

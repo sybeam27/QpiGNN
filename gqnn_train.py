@@ -252,65 +252,6 @@ for run in tqdm(range(args.runs)):
         test_eval = evaluate_model_performance(test_low_preds, test_upper_preds, test_targets, target=args.target_coverage)
         result_this_run['test_metrics'] = test_eval
         
-    elif args.model == 'CP':
-        color = pastel_colors[2]
-        cp_train_data = cp_train_data.to(device)
-        
-        model = GNN_CP(in_dim=in_dim, hidden_dim=args.hidden_dim).to(device)
-        optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
-        
-        torch.cuda.reset_peak_memory_stats()  # GPU peak 메모리 초기화
-        start_time = time.time()    
-        
-        for epoch in range(args.epochs):
-            model.train()
-            optimizer.zero_grad()
-            
-            preds = model(cp_train_data.x, cp_train_data.edge_index)
-            loss = F.mse_loss(preds, cp_train_data.y)
-            
-            loss.backward()
-            optimizer.step()
-
-        end_time = time.time()
-        training_time = end_time - start_time
-        gpu_mem = get_gpu_memory()
-        cpu_mem = get_cpu_memory()
-        param_count = count_parameters(model)
-
-        result_this_run['training_time_sec'] = round(training_time, 2)
-        result_this_run['gpu_mem_MB'] = round(gpu_mem, 2)
-        result_this_run['cpu_mem_MB'] = round(cpu_mem, 2)
-        result_this_run['param_count'] = param_count
-        
-        print(f"Training Time: {training_time:.2f}s | GPU Peak: {gpu_mem:.1f}MB | CPU: {cpu_mem:.1f}MB | Params: {param_count:,}")
-
-        print('-' * 40, f'{args.model}: {args.dataset} Train Evaluation... ', '-' * 40)
-        model.eval()
-        calibration_data = calibration_data.to(device)
-        test_data = test_data.to(device)
-
-        with torch.no_grad():
-            preds_cal = model(calibration_data.x, calibration_data.edge_index)
-            preds_train = model(train_data.x, train_data.edge_index).cpu().numpy()
-            preds_test = model(test_data.x, test_data.edge_index).cpu().numpy()
-
-        conformal_scores = torch.abs(calibration_data.y- preds_cal).cpu().numpy()
-        q_hat = np.quantile(conformal_scores, args.target_coverage)
-
-        train_low_preds = preds_train - q_hat
-        train_upper_preds = preds_train + q_hat
-        train_targets = train_data.y.cpu().numpy()
-        train_eval = evaluate_model_performance(train_low_preds, train_upper_preds, train_targets, target=args.target_coverage)
-        result_this_run['train_metrics'] = train_eval
-        
-        print('-' * 40, f'{args.model}: {args.dataset} Test Evaluation... ', '-' * 40)
-        test_low_preds = preds_test - q_hat
-        test_upper_preds = preds_test + q_hat
-        test_targets = test_data.y.cpu().numpy()
-        test_eval = evaluate_model_performance(test_low_preds, test_upper_preds, test_targets, target=args.target_coverage)
-        result_this_run['test_metrics'] = test_eval
-        
     elif args.model == 'BNN':
         color = pastel_colors[3]
         model = BayesianGNN(in_dim=in_dim, hidden_dim=args.hidden_dim).to(device)

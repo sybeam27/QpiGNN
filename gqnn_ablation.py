@@ -208,7 +208,7 @@ if __name__ == "__main__":
     train_data.x, test_data.x, train_data.y, test_data.y= normalize(train_data.x, train_min, train_max), normalize(test_data.x, train_min, train_max), normalize(train_data.y, y_min, y_max), normalize(test_data.y, y_min, y_max)
 
     # Ablation 조합 생성
-    switches = ['dual_output', 'use_coverage_loss', 'use_width_loss']
+    switches = ['dual_output', 'use_sample_loss', 'use_coverage_loss']  # width는 coverage와 동일하게..
     bools = [True, False]
     ablations = [dict(zip(switches, vals)) for vals in product(bools, repeat=3)]
     print(len(ablations))  # 8개 조합
@@ -221,8 +221,7 @@ if __name__ == "__main__":
         config = ablations[i]
         color = color_bar[i]
         
-        # config['use_sample_loss'] or 
-        if not (config['use_coverage_loss'] or config['use_width_loss']):
+        if not (config['use_sample_loss'] or config['use_coverage_loss']):
             print(f"Skipping invalid config: {config} (all loss terms disabled)")
             continue
         config_name = "_".join([f"{k}({int(v)})" for k, v in config.items()])
@@ -236,9 +235,9 @@ if __name__ == "__main__":
             model = GQNN(in_dim, 64, dual_output=config['dual_output']).to(device)
             criterion = GQNNLoss(target_coverage=0.9,
                                  lambda_factor=args.lambda_factor,
-                                #  use_sample_loss=config['use_sample_loss'],
+                                 use_sample_loss=config['use_sample_loss'],
                                  use_coverage_loss=config['use_coverage_loss'],
-                                 use_width_loss=config['use_width_loss'])
+                                 use_width_loss=config['use_coverage_loss'])
             optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
 
             train_and_evaluate(model, criterion, optimizer,

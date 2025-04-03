@@ -132,7 +132,7 @@ python gqnn_train.py --dataset "Anaheim" --model "GQNN" --target_coverage 0.9 --
 python gqnn_train.py --dataset "ChicagoSketch" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.01
 
 # CF-GNN
-python cf_train.py --dataset "basic" --alpha 0.1 --optimal
+python cf_train.py --dataset "basic" --alpha 0.1 
 python cf_train.py --dataset "gaussian" --alpha 0.1
 python cf_train.py --dataset "uniform" --alpha 0.1
 python cf_train.py --dataset "outlier" --alpha 0.1
@@ -160,7 +160,23 @@ python cf_train.py --dataset "Anaheim" --alpha 0.1 --optimal
 python cf_train.py --dataset "ChicagoSketch" --alpha 0.1 --optimal
 
 # Ablation
-python gqnn_ablation.py --dataset education --model GQNN --pdf True --runs 5
-python gqnn_ablation.py --dataset PTBR --model GQNN --pdf True --runs 5
-python gqnn_ablation.py --dataset chameleon --model GQNN --pdf True --runs 5
-python gqnn_ablation.py --dataset Anaheim --model GQNN --pdf True --runs 5
+python gqnn_ablation.py --dataset "basic" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "gaussian" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "uniform" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "outlier" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "edge" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "BA" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "ER" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "grid" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "tree" --model GQNN --pdf True --runs 10
+
+python gqnn_ablation.py --dataset "education" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "election" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "income" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "unemployment" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "PTBR" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "Anaheim" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "ChicagoSketch" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "chameleon" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "crocodile" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "squirrel" --model GQNN --pdf True --runs 10

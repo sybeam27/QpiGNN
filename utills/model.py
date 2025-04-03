@@ -183,6 +183,8 @@ class GQNNLoss(nn.Module):
         below_loss = torch.relu(preds_low - target)  # target < preds_low
         above_loss = torch.relu(target - preds_upper)  # target > preds_upper
         sample_loss = below_loss + above_loss  # 구간 밖일 때 손실
+        # 평균 샘플 손실 (구간 밖 거리 최소화)
+        mean_sample_loss = sample_loss.mean()
         
         # 커버리지 계산: 구간 안에 있는 샘플 비율
         covered = (preds_low <= target) & (target <= preds_upper)
@@ -194,9 +196,6 @@ class GQNNLoss(nn.Module):
         
         # 폭 패널티
         width_loss = self.lf * 2 * diffs.mean()
-        
-        # 평균 샘플 손실 (구간 밖 거리 최소화)
-        mean_sample_loss = sample_loss.mean()
         
         # 최종 손실: 샘플 손실 + 커버리지 패널티 + 폭 패널티
         return mean_sample_loss + coverage_penalty + width_loss

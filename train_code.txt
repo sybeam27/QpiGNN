@@ -158,3 +158,9 @@ python cf_train.py --dataset "unemployment" --alpha 0.1 --optimal
 python cf_train.py --dataset "PTBR" --alpha 0.1 --optimal
 python cf_train.py --dataset "Anaheim" --alpha 0.1 --optimal
 python cf_train.py --dataset "ChicagoSketch" --alpha 0.1 --optimal
+
+# Ablation
+python gqnn_ablation.py --dataset education --model GQNN --pdf True --runs 5
+python gqnn_ablation.py --dataset PTBR --model GQNN --pdf True --runs 5
+python gqnn_ablation.py --dataset chameleon --model GQNN --pdf True --runs 5
+python gqnn_ablation.py --dataset Anaheim --model GQNN --pdf True --runs 5

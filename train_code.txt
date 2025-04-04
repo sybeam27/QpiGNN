@@ -160,23 +160,15 @@ python cf_train.py --dataset "Anaheim" --alpha 0.1 --optimal
 python cf_train.py --dataset "ChicagoSketch" --alpha 0.1 --optimal
 
 # Ablation
-python gqnn_ablation.py --dataset "basic" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "gaussian" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "uniform" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "outlier" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "edge" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "BA" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "ER" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "grid" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "tree" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "basic" --model GQNN --pdf False 
+python gqnn_ablation.py --dataset "gaussian" --model GQNN --pdf False 
+python gqnn_ablation.py --dataset "uniform" --model GQNN --pdf False 
+python gqnn_ablation.py --dataset "outlier" --model GQNN --pdf False 
+python gqnn_ablation.py --dataset "edge" --model GQNN --pdf False 
+python gqnn_ablation.py --dataset "BA" --model GQNN --pdf False 
+python gqnn_ablation.py --dataset "ER" --model GQNN --pdf False 
+python gqnn_ablation.py --dataset "grid" --model GQNN --pdf False
+python gqnn_ablation.py --dataset "tree" --model GQNN --pdf False 
 
-python gqnn_ablation.py --dataset "education" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "election" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "income" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "unemployment" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "PTBR" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "Anaheim" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "ChicagoSketch" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "chameleon" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "crocodile" --model GQNN --pdf True --runs 10
-python gqnn_ablation.py --dataset "squirrel" --model GQNN --pdf True --runs 10
+python gqnn_ablation.py --dataset "BA" --model GQNN --pdf False --lambda_factor 0.01
+python gqnn_ablation.py --dataset "grid" --model GQNN --pdf False --lambda_factor 0.01

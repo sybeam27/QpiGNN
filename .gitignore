@@ -4,9 +4,12 @@ gqnn_env/
 
 bf/
 result/
+
 pred/
 pred (0401)/
 pred_cf/
 pred_gqnn/
+
 params/
+
 ablation/

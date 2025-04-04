@@ -9,6 +9,8 @@ from torch_geometric.nn import SAGEConv
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from PyPDF2 import PdfMerger
+import numpy as np
+from itertools import product
 
 # 유틸리티 함수 로드
 from utills.function import (
@@ -20,19 +22,77 @@ from utills.function import (
     evaluate_model_performance, sort_by_y
 )
 
+def generate_valid_ablation_configs():
+    configs = []
+    for dual_output in [True, False]:
+        for fixed_margin in [None, 0.05, 0.1]:
+            # fixed_margin은 dual_output=True일 때만 의미 있음
+            if fixed_margin is not None and not dual_output:
+                continue
+
+            for use_sample_loss, use_coverage_loss, use_width_loss in product([True, False], repeat=3):
+                # 1. 모든 loss가 꺼져 있으면 스킵
+                if not (use_sample_loss or use_coverage_loss or use_width_loss):
+                    continue
+
+                # 2. coverage loss만 켜져 있으면 학습 불가 → 스킵
+                if use_coverage_loss and not (use_sample_loss or use_width_loss):
+                    continue
+
+                config = {
+                    'dual_output': dual_output,
+                    'fixed_margin': fixed_margin,
+                    'use_sample_loss': use_sample_loss,
+                    'use_coverage_loss': use_coverage_loss,
+                    'use_width_loss': use_width_loss,
+                }
+                configs.append(config)
+    return configs
+
+def evaluate_ablation_performance(preds_low, preds_upper, targets, target=0.9):
+    # PICP (Prediction Interval Coverage Probability): 커버리지 계산
+    picp = np.mean((targets >= preds_low) & (targets <= preds_upper))
+    
+    # NMPIW (Normalized Mean Prediction Interval Width): 정규화된 구간 너비
+    interval_width = np.mean(preds_upper - preds_low)
+    data_range = np.max(targets) - np.min(targets)
+    nmpiw = interval_width / data_range if data_range > 0 else interval_width  # 범위가 0일 경우 대비
+    
+    # CWC (Coverage Width-based Criterion): NMPIW와 커버리지 패널티 결합
+    mu = target  # 목표 커버리지를 target으로 설정
+    # gamma (float): CWC의 패널티 강도 하이퍼파라미터 (기본값: 1.0)
+    # eta (float): CWC의 지수 함수 감쇠 속도 하이퍼파라미터 (기본값: 10.0)
+    gamma = 1
+    eta = 10
+    penalty = 1 + gamma * np.exp(-eta * (picp - mu))
+    cwc = nmpiw * penalty
+    
+    print(f"종합 - CWC ⬇: {cwc:.4f}")
+    print(f"예측 관련 - PICP ⬆: {picp:.4f}")
+    print(f"구간 관련 - MPIW ⬇: {interval_width:.4f}")
+
+    
+    return {
+        "PCIP": picp,
+        'MPIW': interval_width, 
+        "CWC": cwc,
+    }
+    
 class GQNN(torch.nn.Module):
-    def __init__(self, in_dim, hidden_dim, dual_output=True):
+    def __init__(self, in_dim, hidden_dim, dual_output=True, fixed_margin=None):
         super().__init__()
         self.dual_output = dual_output
+        self.fixed_margin = fixed_margin
         self.conv1 = SAGEConv(in_dim, hidden_dim)
         self.conv2 = SAGEConv(hidden_dim, hidden_dim)
-        
+
         if dual_output:
             self.fc_pred = torch.nn.Linear(hidden_dim, 1)
-            self.fc_diff = torch.nn.Linear(hidden_dim, 1)
+            if fixed_margin is None:
+                self.fc_diff = torch.nn.Linear(hidden_dim, 1)
         else:
-            self.fc_pred_low = torch.nn.Linear(hidden_dim, 1)
-            self.fc_pred_upper = torch.nn.Linear(hidden_dim, 1)
+            self.fc_low = torch.nn.Linear(hidden_dim, 1)
+            self.fc_upper = torch.nn.Linear(hidden_dim, 1)
 
     def forward(self, x, edge_index):
         x = F.relu(self.conv1(x, edge_index))
@@ -40,12 +100,20 @@ class GQNN(torch.nn.Module):
         
         if self.dual_output:
             preds = self.fc_pred(x)
-            diffs = torch.sigmoid(self.fc_diff(x))
-            return preds - diffs, preds + diffs
+            if self.fixed_margin is not None:
+                diffs = torch.ones_like(preds) * self.fixed_margin
+            else:
+                diffs = torch.sigmoid(self.fc_diff(x))
+                
+            pred_low, pred_upper = preds - diffs, preds + diffs
+            return pred_low, pred_upper
         
         else:
-            return self.fc_pred_low(x), self.fc_pred_upper(x)
-
+            pred_low = self.fc_low(x)
+            pred_upper = self.fc_upper(x)
+            
+            return pred_low, pred_upper
+        
 class GQNNLoss(torch.nn.Module):
     def __init__(self, target_coverage=0.9, lambda_factor=0.1,
                  use_sample_loss=True, use_coverage_loss=True, use_width_loss=True):
@@ -64,21 +132,32 @@ class GQNNLoss(torch.nn.Module):
         diffs = (preds_upper - preds_low) / 2
         loss_terms = []
 
+        sample_loss_val = 0.0
+        coverage_penalty_val = 0.0
+        width_penalty_val = 0.0
+
         if self.use_sample_loss:
             below_loss = torch.relu(preds_low - target)
             above_loss = torch.relu(target - preds_upper)
             sample_loss = below_loss + above_loss
-            loss_terms.append(sample_loss.mean())
+            sample_loss_val = sample_loss.mean()
+            loss_terms.append(sample_loss_val)
 
         if self.use_coverage_loss:
             covered = (preds_low <= target) & (target <= preds_upper)
             current_coverage = covered.float().mean()
-            coverage_penalty = (current_coverage - self.target_coverage) ** 2
-            loss_terms.append(coverage_penalty)
+            coverage_penalty_val = (current_coverage - self.target_coverage) ** 2
+            loss_terms.append(coverage_penalty_val)
 
         if self.use_width_loss:
-            width_penalty = self.lf * 2 * diffs.mean()
-            loss_terms.append(width_penalty)
+            width_penalty_val = self.lf * 2 * diffs.mean()
+            loss_terms.append(width_penalty_val)
+            
+        self.last_loss_terms = {
+            'sample': sample_loss_val.item() if isinstance(sample_loss_val, torch.Tensor) else 0.0,
+            'coverage': coverage_penalty_val.item() if isinstance(coverage_penalty_val, torch.Tensor) else 0.0,
+            'width': width_penalty_val.item() if isinstance(width_penalty_val, torch.Tensor) else 0.0,
+        }
 
         return sum(loss_terms)
 
@@ -122,6 +201,7 @@ def save_final_results(results, path):
 def train_and_evaluate(model, criterion, optimizer, train_data, test_data, args, run, device, results, result_this_run, color, config_name):
     model.train()
     start_time = time.time()
+    
     for epoch in range(args.epochs):
         optimizer.zero_grad()
         preds_low, preds_upper = model(train_data.x.to(device), train_data.edge_index.to(device))
@@ -143,13 +223,16 @@ def train_and_evaluate(model, criterion, optimizer, train_data, test_data, args,
         preds_low_test, preds_upper_test = model(test_data.x.to(device), test_data.edge_index.to(device))
 
     # -- 평가 저장
-    result_this_run['train_metrics'] = evaluate_model_performance(
+    result_this_run['train_metrics'] = evaluate_ablation_performance(
         preds_low_train.cpu().numpy(), preds_upper_train.cpu().numpy(), train_data.y.cpu().numpy(), target=args.target_coverage
     )
-    result_this_run['test_metrics'] = evaluate_model_performance(
+    result_this_run['test_metrics'] = evaluate_ablation_performance(
         preds_low_test.cpu().numpy(), preds_upper_test.cpu().numpy(), test_data.y.cpu().numpy(), target=args.target_coverage
     )
 
+    if hasattr(criterion, 'last_loss_terms'):
+        result_this_run['loss_terms'] = criterion.last_loss_terms
+        
     # -- PDF 저장 시도
     if args.pdf:
         save_prediction_plots('Train', train_data.x, train_data.y, preds_low_train.cpu().numpy(), preds_upper_train.cpu().numpy(), train_data.y.cpu().numpy(), args, color, config_name)
@@ -167,9 +250,9 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, default='GQNN')
     parser.add_argument('--pdf', type=bool, default=False)
     parser.add_argument('--epochs', type=int, default=500)
-    parser.add_argument('--runs', type=int, default=1)
+    parser.add_argument('--runs', type=int, default=3)
     parser.add_argument('--device', type=str, default='cuda:0')
-    parser.add_argument('--lambda_factor', type=float, default=0.05)
+    parser.add_argument('--lambda_factor', type=float, default=0.01)
     parser.add_argument('--target_coverage', type=float, default=0.9, help='Target coverage level (1 - α)')
     parser.add_argument('--nodes', type=float, default=1000, help='num_nodes')
     parser.add_argument('--noise', type=float, default=0.3, help='noise_level')
@@ -177,8 +260,10 @@ if __name__ == "__main__":
 
     device = torch.device(args.device)
     set_seed(1127)
-    args.pdf_dir = f"./ablation/{args.dataset}/pdf"
-    os.makedirs(args.pdf_dir, exist_ok=True)
+    
+    if args.pdf == True:
+        args.pdf_dir = f"./ablation/{args.dataset}/pdf"
+        os.makedirs(args.pdf_dir, exist_ok=True)
 
     # 데이터 로딩
     if args.dataset != '':
@@ -208,44 +293,57 @@ if __name__ == "__main__":
     train_data.x, test_data.x, train_data.y, test_data.y= normalize(train_data.x, train_min, train_max), normalize(test_data.x, train_min, train_max), normalize(train_data.y, y_min, y_max), normalize(test_data.y, y_min, y_max)
 
     # Ablation 조합 생성
-    switches = ['dual_output', 'use_sample_loss', 'use_coverage_loss']  # width는 coverage와 동일하게..
-    bools = [True, False]
-    ablations = [dict(zip(switches, vals)) for vals in product(bools, repeat=3)]
-    print(len(ablations))  # 8개 조합
+    ablations = generate_valid_ablation_configs()
+    print(f"Total valid ablation configs: {len(ablations)}")
 
     # Ablation 실행
     in_dim = train_data.x.shape[1]
     color_bar = sns.color_palette("Set1", len(ablations))
 
-    for i in range(len(ablations)):
-        config = ablations[i]
+    for i, config in enumerate(ablations):
         color = color_bar[i]
-        
-        if not (config['use_sample_loss'] or config['use_coverage_loss']):
-            print(f"Skipping invalid config: {config} (all loss terms disabled)")
-            continue
-        config_name = "_".join([f"{k}({int(v)})" for k, v in config.items()])
-        
+
+        # config_name 만들기 (float 값 처리 포함)
+        def format_val(v):
+            if isinstance(v, bool):
+                return int(v)
+            elif v is None:
+                return "None"
+            elif isinstance(v, float):
+                return f"{v:.2f}"
+            else:
+                return str(v)
+
+        config_name = "_".join([f"{k}({format_val(v)})" for k, v in config.items()])
         print(f"\n===== Running: {config_name} =====")
-        
+
         results = {}
         for run in range(args.runs):
             result_this_run = {}
 
-            model = GQNN(in_dim, 64, dual_output=config['dual_output']).to(device)
-            criterion = GQNNLoss(target_coverage=0.9,
-                                 lambda_factor=args.lambda_factor,
-                                 use_sample_loss=config['use_sample_loss'],
-                                 use_coverage_loss=config['use_coverage_loss'],
-                                 use_width_loss=config['use_coverage_loss'])
+            model = GQNN(
+                in_dim, 64,
+                dual_output=config['dual_output'],
+                fixed_margin=config['fixed_margin']
+            ).to(device)
+
+            criterion = GQNNLoss(
+                target_coverage=args.target_coverage,
+                lambda_factor=args.lambda_factor,
+                use_sample_loss=config['use_sample_loss'],
+                use_coverage_loss=config['use_coverage_loss'],
+                use_width_loss=config['use_width_loss']
+            )
+
             optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
 
-            train_and_evaluate(model, criterion, optimizer,
-                               train_data, test_data,
-                               args, run, device,
-                               results, result_this_run,
-                               color, config_name)
+            train_and_evaluate(
+                model, criterion, optimizer,
+                train_data, test_data,
+                args, run, device,
+                results, result_this_run,
+                color, config_name
+            )
 
         save_final_results(results, f"./ablation/{args.dataset}/{config_name}.pkl")
-
 

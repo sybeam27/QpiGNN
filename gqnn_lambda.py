@@ -54,46 +54,6 @@ runs = 5
 epochs = 500
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def plot_lambda_sweep_results(logs_dict, best_dict, target_coverage):
-    os.makedirs("lambda_selection_figs", exist_ok=True)
-
-    for dataset, log in logs_dict.items():
-        lambdas = [entry['lambda'] for entry in log]
-        picps = [entry['PICP'] for entry in log]
-        mpiws = [entry['MPIW'] for entry in log]
-
-        best_lambda, best_mpiw = best_dict[dataset]
-
-        fig, ax1 = plt.subplots(figsize=(7, 4))
-        ax2 = ax1.twinx()
-
-        # Plot PICP
-        ax1.plot(lambdas, picps, 'o-', color='tab:blue', label='PICP (%)')
-        ax1.axhline(target_coverage, color='tab:blue', linestyle='--', alpha=0.3)
-        ax1.set_ylabel("PICP", color='tab:blue')
-        ax1.tick_params(axis='y', labelcolor='tab:blue')
-
-        # Plot MPIW
-        ax2.plot(lambdas, mpiws, 's--', color='tab:red', label='MPIW')
-        ax2.set_ylabel("MPIW", color='tab:red')
-        ax2.tick_params(axis='y', labelcolor='tab:red')
-
-        # Highlight best λ
-        if best_lambda is not None:
-            best_idx = lambdas.index(best_lambda)
-            ax1.plot(best_lambda, picps[best_idx], 'o', color='blue', markersize=10, markerfacecolor='none', markeredgewidth=2)
-            ax2.plot(best_lambda, mpiws[best_idx], 's', color='red', markersize=10, markerfacecolor='none', markeredgewidth=2)
-
-        ax1.set_xlabel("Lambda")
-        plt.title(f"Lambda Sensitivity on {dataset}")
-        fig.tight_layout()
-        plt.grid(True)
-
-        fig_path = f"lambda_selection_figs/{dataset.lower()}_lambda_sweep.png"
-        plt.savefig(fig_path)
-        print(f"Saved plot: {fig_path}")
-        plt.close()
-
 def select_optimal_lambda(dataset_name, lambda_list, target_coverage):
     best_lambda = None
     best_mpiw = float("inf")
@@ -193,6 +153,11 @@ def plot_lambda_sweep_subplots(logs_dict, result_dict, target_coverage):
         lambdas = [entry['lambda'] for entry in log]
         picps = [entry['PICP'] for entry in log]
         mpiws = [entry['MPIW'] for entry in log]
+        
+        sorted_idx = np.argsort(lambdas)
+        lambdas = [lambdas[i] for i in sorted_idx]
+        picps   = [picps[i]   for i in sorted_idx]
+        mpiws   = [mpiws[i]   for i in sorted_idx]
 
         best_lambda, best_mpiw = result_dict[dataset]
         ax1 = axes[idx]
@@ -211,8 +176,22 @@ def plot_lambda_sweep_subplots(logs_dict, result_dict, target_coverage):
 
         if best_lambda is not None and best_lambda in lambdas:
             best_idx = lambdas.index(best_lambda)
-            ax1.plot(best_lambda, picps[best_idx], 'o', color='blue', markerfacecolor='none', markersize=10)
-            ax2.plot(best_lambda, mpiws[best_idx], 's', color='red', markerfacecolor='none', markersize=10)
+            best_x = best_lambda
+            best_picp = picps[best_idx]
+            best_mpiw = mpiws[best_idx]
+
+            # 마커 표시
+            ax1.plot(best_x, best_picp, 'o', color='blue', markerfacecolor='none', markersize=10)
+            ax2.plot(best_x, best_mpiw, 's', color='red', markerfacecolor='none', markersize=10)
+
+            # # 텍스트 라벨 추가 (PICP 쪽)
+            # ax1.text(
+            #     best_x, best_picp + 1.0,  # y위치 살짝 위로
+            #     f"λ={best_x:.2f}",
+            #     fontsize=10,
+            #     color='blue',
+            #     ha='center'
+            # )
 
         # 첫 번째 subplot에서만 handles 저장
         if idx == 0:
@@ -234,8 +213,8 @@ def plot_lambda_sweep_subplots(logs_dict, result_dict, target_coverage):
     )
 
     fig.tight_layout(rect=[0, 0.03, 1, 1])  # bottom 여백 확보
-    os.makedirs("lambda_selection_figs", exist_ok=True)
-    fig_path = "lambda_selection_figs/lambda_sweep_all_subplots.png"
+    os.makedirs("lambda/figs", exist_ok=True)
+    fig_path = "lambda/figs/lambda_sweep_all_subplots.png"
     fig.savefig(fig_path, bbox_inches='tight')
     print(f"Saved subplot figure with legend: {fig_path}")
     plt.close()
@@ -250,6 +229,8 @@ def get_lambda_list(logscale=False, num_points=10):
 space = [Real(0.001, 0.1, name='lam')]
 
 def run_lambda_optimization(data, target_coverage, epochs=300, runs=3):
+    eval_log = []  # ← 여기에 로그 저장
+
     @use_named_args(space)
     def objective(lam):
         picps, mpiws = [], []
@@ -261,11 +242,13 @@ def run_lambda_optimization(data, target_coverage, epochs=300, runs=3):
         mean_picp = np.mean(picps)
         mean_mpiw = np.mean(mpiws)
 
+        eval_log.append({'lambda': lam, 'PICP': mean_picp, 'MPIW': mean_mpiw})  # ← 로그 추가
+
         if mean_picp < target_coverage:
             return mean_mpiw + (target_coverage - mean_picp) * 100
         else:
             return mean_mpiw
-        
+
     result = gp_minimize(
         func=objective,
         dimensions=space,
@@ -274,16 +257,17 @@ def run_lambda_optimization(data, target_coverage, epochs=300, runs=3):
         n_random_starts=5,
         random_state=42
     )
-    return result
+    return result, eval_log
 
 # ---------------- Main Entry ---------------- #
 if __name__ == "__main__":
     target_coverage = 0.90
-    dataset_list = ['basic', 'gaussian', 'uniform', 'outlier', 'edge', 'BA', 'ER', 'grid', 'tree'
-                    # ,'education', 'election', 'income', 'unemployment', 'PTBR', 'chameleon', 'crocodile', 'squirrel', 'Anaheim', 'ChicagoSketch'
+    dataset_list = [
+                    # 'basic', 'gaussian', 'uniform', 'outlier', 'edge', 'BA', 'ER', 'grid', 'tree'
+                    'education', 'election', 'income', 'unemployment', 'PTBR', 'chameleon', 'crocodile', 'squirrel', 'Anaheim', 'ChicagoSketch'
                     ]
-    epochs = 500
-    runs = 5
+    epochs = 300
+    runs = 3
 
     logs_dict = {}
     result_dict = {}
@@ -293,12 +277,12 @@ if __name__ == "__main__":
     for dataset in dataset_list:
         print(f"\n=== Optimizing λ for dataset: {dataset} ===")
         data = load_graph_dataset(dataset)
-        result = run_lambda_optimization(data, target_coverage, epochs, runs)
+        result, log = run_lambda_optimization(data, target_coverage, epochs, runs)  # ← 로그 함께 반환받음
         best_lam = result.x[0]
         best_mpiw = result.fun
 
         result_dict[dataset] = (best_lam, best_mpiw)
-        logs_dict[dataset] = [{'lambda': x, 'PICP': None, 'MPIW': None} for x in result.x_iters]
+        logs_dict[dataset] = log 
 
         # 시각화 (개별 convergence plot)
         fig = plot_convergence(result)

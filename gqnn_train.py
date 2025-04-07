@@ -59,10 +59,10 @@ parser.add_argument('--epochs', type=float, default=500, help='num_epochs')
 parser.add_argument('--runs', type=int, default=10, help='num_runs')
 parser.add_argument('--device', type=str, default='cuda:0')
 parser.add_argument('--pdf', type=bool, default=False, help='pdf_save')
+parser.add_argument('--optimal', action='store_true', default = False)
 
 # parser.add_argument('--tau_low', type=float, default=0.05, help='tau_low')
 # parser.add_argument('--tau_upper', type=float, default=0.95, help='tau_upper')
-
 
 parser.add_argument('--lambda_factor', type=float, default=1, help='lambda_factor')
 parser.add_argument('--num_samples', type=float, default=100, help='num_samples')
@@ -122,10 +122,21 @@ if args.pdf:
     pdf_dir = os.path.join(root_dir, 'img')
     os.makedirs(pdf_dir, exist_ok=True)
 
+if args.optimal:
+    if args.dataset in ['basic', 'gaussian', 'uniform', 'outlier', 'edge', 'BA', 'ER', 'grid', 'tree']:
+        df = pd.read_csv("./lambda/syn/lambda_optimized_results.csv")
+        optimal_lambda = df[df['Dataset'] == args.dataset]['Best Lambda'].values[0]
+    else:
+        df = pd.read_csv("./lambda/real/lambda_optimized_results.csv")
+        optimal_lambda = df[df['Dataset'] == args.dataset]['Best Lambda'].values[0]
+
 file_name = args.dataset + '_' + args.model
 if args.model == 'GQNN':
-    file_name += f'_lf({args.lambda_factor})'
-
+    if args.optimal:
+        file_name += f'_lf({optimal_lambda})'
+    else:
+        file_name += f'_lf({args.lambda_factor})'
+     
 # Training..
 print('-' * 40, f'{args.model}: {args.dataset} training is starting... ', '-' * 40)
 
@@ -406,7 +417,11 @@ for run in tqdm(range(args.runs)):
         color = pastel_colors[6]
         model = GQNN(in_dim=in_dim, hidden_dim=args.hidden_dim).to(device)
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
-        criterion = GQNNLoss(target_coverage=args.target_coverage, lambda_factor=args.lambda_factor)
+        
+        if args.optimal:
+            criterion = GQNNLoss(target_coverage=args.target_coverage, lambda_factor=optimal_lambda)
+        else:
+            criterion = GQNNLoss(target_coverage=args.target_coverage, lambda_factor=args.lambda_factor)
 
         torch.cuda.reset_peak_memory_stats()  # GPU peak 메모리 초기화
         start_time = time.time()    

@@ -614,7 +614,7 @@ def evaluate_model_performance(preds_low, preds_upper, targets, target=0.9):
 
     
     return {
-        "PCIP": picp,
+        "PICP": picp,
         'MPIW': interval_width, 
         "NMPIW": nmpiw,
         "MCT": mct,

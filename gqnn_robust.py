@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import csv
 
 from utills.model import GQNN, GQNNLoss
-from utills.function import generate_graph_data, split_graph_data, normalize
+from utills.function import generate_graph_data, create_er_graph_pyg, split_graph_data, normalize
 
 # ---------------- Evaluation ---------------- #
 def evaluate_model_performance(preds_low, preds_upper, targets, target=0.9):
@@ -37,7 +37,8 @@ def add_target_noise(y, std):
 
 # ---------------- Main Experiment ---------------- #
 def run_robustness_experiment(noise_type, levels, device, args):
-    base_graph = generate_graph_data(num_nodes=1000)
+    # base_graph = generate_graph_data(num_nodes=1000)
+    base_graph = create_er_graph_pyg(n=1000)
     train_data, test_data = split_graph_data(base_graph, test_ratio=0.2)
     in_dim = train_data.x.shape[1]
     results = []
@@ -55,16 +56,18 @@ def run_robustness_experiment(noise_type, levels, device, args):
             train_data_.y = add_target_noise(train_data.y, std=level)
 
         # Normalize
-        train_data_.x = normalize(train_data_.x)
-        test_data_.x = normalize(test_data_.x)
-        train_data_.y = normalize(train_data_.y)
-        test_data_.y = normalize(test_data_.y)
+        train_min, train_max = train_data.x.min(), train_data.x.max()
+        y_min, y_max = train_data.y.min(), train_data.y.max()
+        train_data.x = normalize(train_data.x, train_min, train_max)
+        test_data.x = normalize(test_data.x, train_min, train_max)
+        train_data.y = normalize(train_data.y, y_min, y_max)
+        test_data.y = normalize(test_data.y, y_min, y_max)
 
-        # Run model
+        # Run model multiple times
         picps, mpiws = [], []
         for run in range(args.runs):
             model = GQNN(in_dim=in_dim, hidden_dim=64).to(device)
-            criterion = GQNNLoss(target_coverage=0.9, lambda_factor=0.01)
+            criterion = GQNNLoss(target_coverage=0.9, lambda_factor=0.05)
             optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
             model.train()
@@ -83,9 +86,14 @@ def run_robustness_experiment(noise_type, levels, device, args):
                 picps.append(metrics['PICP'] * 100)
                 mpiws.append(metrics['MPIW'])
 
-        mean_picp, mean_mpiw = np.mean(picps), np.mean(mpiws)
-        results.append((level, mean_picp, mean_mpiw))
-        print(f"{noise_type}={level:.2f} → PICP={mean_picp:.2f}%, MPIW={mean_mpiw:.3f}")
+        # Calculate mean & std
+        mean_picp = np.mean(picps)
+        std_picp = np.std(picps)
+        mean_mpiw = np.mean(mpiws)
+        std_mpiw = np.std(mpiws)
+
+        results.append((level, mean_picp, mean_mpiw, std_picp, std_mpiw))
+        print(f"{noise_type}={level:.2f} → PICP={mean_picp:.2f}±{std_picp:.2f}%, MPIW={mean_mpiw:.3f}±{std_mpiw:.3f}")
 
     return results
 
@@ -119,16 +127,63 @@ def plot_results(noise_type, levels, results):
     plt.legend()
     plt.tight_layout()
 
-    os.makedirs("./figs", exist_ok=True)
-    path = f"./figs/robustness_{noise_type}.png"
+    os.makedirs("robust/figs", exist_ok=True)
+    path = f"robust/figs/robustness_{noise_type}.png"
     plt.savefig(path)
     print(f"Saved Figure: {path}")
     plt.close()
 
+def plot_results_combined(results_dict):
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    noise_labels = {
+        "feature": "Gaussian Noise Std",
+        "edge": "Edge Dropout Ratio",
+        "target": "Target Noise Std"
+    }
+
+    for idx, (noise_type, (levels, results)) in enumerate(results_dict.items()):
+        ax1 = axes[idx]
+        ax2 = ax1.twinx()
+
+        picps = [r[1] for r in results]
+        mpiws = [r[2] for r in results]
+        std_picps = [r[3] for r in results]
+        std_mpiws = [r[4] for r in results]
+
+        # PICP plot (Left Y-axis)
+        ax1.plot(levels, picps, 'o-', color='tab:blue', label="PICP (%)")
+        ax1.fill_between(levels,
+                         [m - s for m, s in zip(picps, std_picps)],
+                         [m + s for m, s in zip(picps, std_picps)],
+                         color='tab:blue', alpha=0.2)
+
+        # MPIW plot (Right Y-axis)
+        ax2.plot(levels, mpiws, 's--', color='tab:red', label="MPIW")
+        ax2.fill_between(levels,
+                         [m - s for m, s in zip(mpiws, std_mpiws)],
+                         [m + s for m, s in zip(mpiws, std_mpiws)],
+                         color='tab:red', alpha=0.2)
+
+        ax1.set_xlabel(noise_labels[noise_type])
+        ax1.set_ylabel("PICP (%)") # , color='tab:blue'
+        ax2.set_ylabel("MPIW")  # , color='tab:red'
+        ax1.set_title(f"{noise_type.capitalize()} Noise")
+
+        ax1.tick_params(axis='y') # , labelcolor='tab:blue'
+        ax2.tick_params(axis='y') # , labelcolor='tab:red'
+        ax1.grid(True) 
+
+    fig.tight_layout()
+    os.makedirs("robust/figs", exist_ok=True)
+    path = "robust/figs/robustness_all.png"
+    plt.savefig(path)
+    print(f"Saved Combined Figure: {path}")
+    plt.close()
+    
 # ---------------- Main Entry ---------------- #
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--runs", type=int, default=3)
+    parser.add_argument("--runs", type=int, default=5 )
     parser.add_argument("--epochs", type=int, default=500)
     parser.add_argument("--device", type=str, default="cuda:0")
     args = parser.parse_args()
@@ -136,12 +191,22 @@ if __name__ == "__main__":
 
     tasks = {
         "feature": [0.0, 0.1, 0.2, 0.3],
-        "edge": [0.0, 0.2, 0.4],
-        "target": [0.0, 0.1, 0.2],
+        "edge": [0.0, 0.2, 0.4, 0.6],
+        "target": [0.0, 0.1, 0.2, 0.3],
     }
 
+    # for noise_type, levels in tasks.items():
+    #     print(f"\n===== Running: {noise_type} perturbation =====")
+    #     results = run_robustness_experiment(noise_type, levels, device, args)
+    #     save_results_csv(results, noise_type)
+    #     plot_results(noise_type, levels, results)
+    
+    results_dict = {}
     for noise_type, levels in tasks.items():
         print(f"\n===== Running: {noise_type} perturbation =====")
         results = run_robustness_experiment(noise_type, levels, device, args)
         save_results_csv(results, noise_type)
         plot_results(noise_type, levels, results)
+        results_dict[noise_type] = (levels, results)
+
+    plot_results_combined(results_dict)

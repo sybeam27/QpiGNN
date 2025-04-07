@@ -45,7 +45,7 @@ class GQNN_R(nn.Module):
         x = F.relu(self.conv2(x, edge_index))
         
         return self.fc(x)
-    
+        
 class GQNN_N(nn.Module):
     def __init__(self, in_dim, hidden_dim):
         super().__init__()
@@ -149,26 +149,64 @@ class MCDropoutGNN(nn.Module):
         x = F.dropout(x, p=self.dropout, training=training)  # Dropout 유지
         return self.fc(x).squeeze()  # (batch_size,)
 
-class GQNN(nn.Module):
-    def __init__(self, in_dim, hidden_dim):
+# class GQNN(nn.Module):
+#     def __init__(self, in_dim, hidden_dim):
+#         super().__init__()
+#         self.conv1 = SAGEConv(in_dim, hidden_dim)
+#         self.conv2 = SAGEConv(hidden_dim, hidden_dim)
+#         self.fc_pred = nn.Linear(hidden_dim, 1)
+#         self.fc_diff = nn.Linear(hidden_dim, 1)
+        
+#     def forward(self, x, edge_index):
+#         x = F.relu(self.conv1(x, edge_index))
+#         x = F.relu(self.conv2(x, edge_index))
+        
+#         preds = self.fc_pred(x)
+#         diffs = torch.sigmoid(self.fc_diff(x))
+        
+#         preds_low = preds - diffs
+#         preds_upper = preds + diffs
+        
+#         return preds_low, preds_upper
+
+class GQNN(torch.nn.Module):
+    def __init__(self, in_dim, hidden_dim, dual_output=True, fixed_margin=None):
         super().__init__()
+        self.dual_output = dual_output
+        self.fixed_margin = fixed_margin
         self.conv1 = SAGEConv(in_dim, hidden_dim)
         self.conv2 = SAGEConv(hidden_dim, hidden_dim)
-        self.fc_pred = nn.Linear(hidden_dim, 1)
-        self.fc_diff = nn.Linear(hidden_dim, 1)
-        
+
+        if dual_output:
+            self.fc_pred = torch.nn.Linear(hidden_dim, 1)
+            if fixed_margin is None:
+                self.fc_diff = torch.nn.Linear(hidden_dim, 1)
+        else:
+            self.fc_low = torch.nn.Linear(hidden_dim, 1)
+            self.fc_upper = torch.nn.Linear(hidden_dim, 1)
+
     def forward(self, x, edge_index):
         x = F.relu(self.conv1(x, edge_index))
         x = F.relu(self.conv2(x, edge_index))
         
-        preds = self.fc_pred(x)
-        diffs = torch.sigmoid(self.fc_diff(x))
+        if self.dual_output:
+            preds = self.fc_pred(x)
+            
+            if self.fixed_margin is not None:
+                diffs = torch.ones_like(preds) * self.fixed_margin
+            else:
+                diffs = torch.sigmoid(self.fc_diff(x))
+                
+            pred_low, pred_upper = preds - diffs, preds + diffs
+            
+            return pred_low, pred_upper
         
-        preds_low = preds - diffs
-        preds_upper = preds + diffs
-        
-        return preds_low, preds_upper
-    
+        else:
+            pred_low = self.fc_low(x)
+            pred_upper = self.fc_upper(x)
+            
+            return pred_low, pred_upper
+         
 class GQNNLoss(nn.Module):
     def __init__(self, target_coverage=0.9, lambda_factor=0.1):
         super().__init__()

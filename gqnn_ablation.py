@@ -22,23 +22,67 @@ from utills.function import (
     evaluate_model_performance, sort_by_y
 )
 
+# def generate_valid_ablation_configs():
+#     configs = []
+#     for dual_output in [True, False]:
+#         for fixed_margin in [None, 0.05, 0.1]:
+#             # fixed_margin은 dual_output=True일 때만 의미 있음
+#             if fixed_margin is not None and not dual_output:
+#                 continue
+
+#             for use_sample_loss, use_coverage_loss, use_width_loss in product([True, False], repeat=3):
+#                 # 1. 모든 loss가 꺼져 있으면 스킵
+#                 if not (use_sample_loss or use_coverage_loss or use_width_loss):
+#                     continue
+
+#                 # 2. coverage loss만 켜져 있으면 학습 불가 → 스킵
+#                 if use_coverage_loss and not (use_sample_loss or use_width_loss):
+#                     continue
+
+#                 config = {
+#                     'dual_output': dual_output,
+#                     'fixed_margin': fixed_margin,
+#                     'use_sample_loss': use_sample_loss,
+#                     'use_coverage_loss': use_coverage_loss,
+#                     'use_width_loss': use_width_loss,
+#                 }
+#                 configs.append(config)
+#     return configs
+
 def generate_valid_ablation_configs():
+    
+    def format_margin(val):
+        if val is None:
+            return "None"
+        return f"{val:.2f}"
+
+    configs_to_include_arch = [
+        # Architecture ablation
+        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(0.05)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(0.10)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(0)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
+    ]
+
+    configs_to_include_loss = [
+        # Loss ablation
+        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(0)",
+        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(0)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(None)_use_sample_loss(0)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(None)_use_sample_loss(0)_use_coverage_loss(0)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(0)_use_width_loss(0)",
+    ]
+
+    allowed_config_strs = set(configs_to_include_arch + configs_to_include_loss)
+
     configs = []
     for dual_output in [True, False]:
         for fixed_margin in [None, 0.05, 0.1]:
-            # fixed_margin은 dual_output=True일 때만 의미 있음
             if fixed_margin is not None and not dual_output:
                 continue
 
             for use_sample_loss, use_coverage_loss, use_width_loss in product([True, False], repeat=3):
-                # 1. 모든 loss가 꺼져 있으면 스킵
-                if not (use_sample_loss or use_coverage_loss or use_width_loss):
-                    continue
-
-                # 2. coverage loss만 켜져 있으면 학습 불가 → 스킵
-                if use_coverage_loss and not (use_sample_loss or use_width_loss):
-                    continue
-
                 config = {
                     'dual_output': dual_output,
                     'fixed_margin': fixed_margin,
@@ -46,7 +90,17 @@ def generate_valid_ablation_configs():
                     'use_coverage_loss': use_coverage_loss,
                     'use_width_loss': use_width_loss,
                 }
-                configs.append(config)
+
+                config_str = (
+                    f"dual_output({int(dual_output)})"
+                    f"_fixed_margin({format_margin(fixed_margin)})"
+                    f"_use_sample_loss({int(use_sample_loss)})"
+                    f"_use_coverage_loss({int(use_coverage_loss)})"
+                    f"_use_width_loss({int(use_width_loss)})"
+                )
+                if config_str in allowed_config_strs:
+                    configs.append(config)
+
     return configs
 
 def evaluate_ablation_performance(preds_low, preds_upper, targets, target=0.9):
@@ -250,9 +304,9 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, default='GQNN')
     parser.add_argument('--pdf', type=bool, default=False)
     parser.add_argument('--epochs', type=int, default=500)
-    parser.add_argument('--runs', type=int, default=3)
+    parser.add_argument('--runs', type=int, default=5)
     parser.add_argument('--device', type=str, default='cuda:0')
-    parser.add_argument('--lambda_factor', type=float, default=0.01)
+    parser.add_argument('--lambda_factor', type=float, default=0.05)
     parser.add_argument('--target_coverage', type=float, default=0.9, help='Target coverage level (1 - α)')
     parser.add_argument('--nodes', type=float, default=1000, help='num_nodes')
     parser.add_argument('--noise', type=float, default=0.3, help='noise_level')

@@ -37,7 +37,7 @@ from utills.function import set_seed, generate_graph_data, generate_noisy_graph_
             load_wiki_graph_data, load_trans_graph_data, create_ba_graph_pyg, create_er_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg, \
             normalize, split_graph_data, split_cp_graph_data, evaluate_model_performance, sort_by_y, coverage_width, \
                 get_gpu_memory, get_cpu_memory, count_parameters
-from utills.model import GQNN_R, GQNN_N, GNN_CP, BayesianGNN, MCDropoutGNN, GQNN, QRLoss, RQRLoss, GQNNLoss, GQNNLoss2
+from utills.model import GQNN_R, GQNN_N, BayesianGNN, MCDropoutGNN, GQNN, QRLoss, RQRLoss, GQNNLoss, GQNNLoss2
 
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 # os.environ["TORCH_USE_CUDA_DSA"] = "1"

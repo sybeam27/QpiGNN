@@ -150,28 +150,32 @@ def plot_results_combined(results_dict):
         std_picps = [r[3] for r in results]
         std_mpiws = [r[4] for r in results]
 
-        # PICP plot (Left Y-axis)
-        ax1.plot(levels, picps, 'o-', color='tab:blue', label="PICP (%)")
+        # Plot PICP
+        l1 = ax1.plot(levels, picps, 'o-', color='tab:blue', label="PICP (%)")[0]
         ax1.fill_between(levels,
                          [m - s for m, s in zip(picps, std_picps)],
                          [m + s for m, s in zip(picps, std_picps)],
                          color='tab:blue', alpha=0.2)
 
-        # MPIW plot (Right Y-axis)
-        ax2.plot(levels, mpiws, 's--', color='tab:red', label="MPIW")
+        # Plot MPIW
+        l2 = ax2.plot(levels, mpiws, 's--', color='tab:red', label="MPIW")[0]
         ax2.fill_between(levels,
                          [m - s for m, s in zip(mpiws, std_mpiws)],
                          [m + s for m, s in zip(mpiws, std_mpiws)],
                          color='tab:red', alpha=0.2)
 
+        # Axis labels and title
         ax1.set_xlabel(noise_labels[noise_type])
-        ax1.set_ylabel("PICP (%)") # , color='tab:blue'
-        ax2.set_ylabel("MPIW")  # , color='tab:red'
+        ax1.set_ylabel("PICP (%)")
+        ax2.set_ylabel("MPIW")
         ax1.set_title(f"{noise_type.capitalize()} Noise")
 
-        ax1.tick_params(axis='y') # , labelcolor='tab:blue'
-        ax2.tick_params(axis='y') # , labelcolor='tab:red'
-        ax1.grid(True) 
+        ax1.tick_params(axis='y')
+        ax2.tick_params(axis='y')
+        ax1.grid(True)
+
+        # Combine legends from both axes
+        ax1.legend(handles=[l1, l2], loc='upper right')
 
     fig.tight_layout()
     os.makedirs("robust/figs", exist_ok=True)
@@ -179,6 +183,7 @@ def plot_results_combined(results_dict):
     plt.savefig(path)
     print(f"Saved Combined Figure: {path}")
     plt.close()
+
     
 # ---------------- Main Entry ---------------- #
 if __name__ == "__main__":

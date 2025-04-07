@@ -87,71 +87,48 @@ def save_results_to_csv(results, save_path="sensitivity/sensitivity_results.csv"
             writer.writerow([tc, lam, picp, mpiw])
     print(f"Saved results to {save_path}")
 
-# def plot_sensitivity_matrix(results, target_coverages, lambdas):
-#     os.makedirs("sensitivity/figs", exist_ok=True)
-
-#     picp_matrix = np.array([[results[(tc, lam)][0] for lam in lambdas] for tc in target_coverages])
-#     mpiw_matrix = np.array([[results[(tc, lam)][1] for lam in lambdas] for tc in target_coverages])
-
-#     for metric_name, matrix in zip(["PICP", "MPIW"], [picp_matrix, mpiw_matrix]):
-#         plt.figure(figsize=(6, 4))
-#         for i, tc in enumerate(target_coverages):
-#             plt.plot(lambdas, matrix[i], marker='o', label=f"Target={tc}")
-#         plt.xlabel("Lambda (Width Penalty)")
-#         plt.ylabel(metric_name)
-#         plt.title(f"{metric_name} vs. Lambda at Different Target Coverages")
-#         plt.legend()
-#         plt.grid(True)
-#         plt.tight_layout()
-#         plt.savefig(f"sensitivity/figs/sensitivity_{metric_name.lower()}.png")
-#         print(f"Saved: figs/sensitivity_{metric_name.lower()}.png")
-#         plt.close()
-
 def plot_sensitivity_matrix(results, target_coverages, lambdas):
     os.makedirs("sensitivity/figs", exist_ok=True)
 
-    # Metric matrices
     picp_matrix = np.array([[results[(tc, lam)][0] for lam in lambdas] for tc in target_coverages])
     mpiw_matrix = np.array([[results[(tc, lam)][1] for lam in lambdas] for tc in target_coverages])
 
-    # 선 스타일 (target마다 다르게)
-    line_styles = ['-', '--', '-.', ':']
-    assert len(target_coverages) <= len(line_styles), "Add more line styles if needed"
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
 
-    # 그림 생성
-    fig, ax1 = plt.subplots(figsize=(7, 5))
-    ax2 = ax1.twinx()
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
+    linestyles = ['-', '--', '-.', ':', (0, (3, 1, 1, 1))]  # 다양한 패턴
 
     for i, tc in enumerate(target_coverages):
-        style = line_styles[i % len(line_styles)]
+        color = colors[i % len(colors)]
+        style = linestyles[i % len(linestyles)]
         
-        ax1.plot(lambdas, picp_matrix[i], linestyle=style, marker='o',
-                 color='tab:blue', label=f"PICP (τ={tc})")
-        ax2.plot(lambdas, mpiw_matrix[i], linestyle=style, marker='s',
-                 color='tab:red', label=f"MPIW (τ={tc})")
+        # Plot PICP
+        axes[0].plot(lambdas, picp_matrix[i], marker='o', color=color, linestyle=style, label=f"Target={tc}")
+        # Plot MPIW
+        axes[1].plot(lambdas, mpiw_matrix[i], marker='s', color=color, linestyle=style, label=f"Target={tc}")
 
-    # 축 라벨
-    ax1.set_xlabel("Lambda (Width Penalty)")
-    ax1.set_ylabel("PICP (%)", color='tab:blue')
-    ax2.set_ylabel("MPIW", color='tab:red')
-    ax1.tick_params(axis='y', labelcolor='tab:blue')
-    ax2.tick_params(axis='y', labelcolor='tab:red')
+    # PICP subplot
+    axes[0].set_ylabel("PICP (%)")
+    axes[0].set_title("PICP vs. Lambda")
 
-    # 제목 및 범례
-    ax1.set_title("Sensitivity to Lambda across Target Coverages")
-    
-    # 범례 합치기
-    lines_1, labels_1 = ax1.get_legend_handles_labels()
-    lines_2, labels_2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='best')
+    # MPIW subplot
+    axes[1].set_xlabel("Lambda (Width Penalty)")
+    axes[1].set_ylabel("MPIW")
+    axes[1].set_title("MPIW vs. Lambda")
 
-    ax1.grid(True)
+    # 범례 (하단 subplot에만 넣고 하나로 통합)
+    axes[1].legend(title="Target Coverage")
+
+    # 그리드와 레이아웃 정리
+    for ax in axes:
+        ax.grid(True)
+
     fig.tight_layout()
     path = "sensitivity/figs/sensitivity_combined.png"
     plt.savefig(path)
     print(f"Saved: {path}")
     plt.close()
-
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs", type=int, default=5)

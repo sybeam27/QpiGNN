@@ -61,6 +61,72 @@ def evaluate(model, test_data, device, tau):
         )
     return metrics
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import numpy as np
+from math import pi
+import os
+
+def plot_generalization_combined_with_consistent_colors(df, metric='PICP'):
+    targets = df['Target'].unique().tolist()
+    sources = df['Source'].unique().tolist()
+
+    # Define a consistent color palette for sources
+    palette = sns.color_palette("Set1", n_colors=len(sources))
+    color_map = dict(zip(sources, palette))
+
+    # Create figure
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+
+    # -------- Barplot --------
+    df_bar = df[['Source', 'Target', metric]].copy()
+    df_bar['Metric'] = metric
+    df_bar = df_bar.rename(columns={metric: "Value"})
+    
+    sns.barplot(
+        data=df_bar,
+        x='Source', y='Value', hue='Target',
+        palette='Set1', ax=axes[0]
+    )
+    axes[0].set_title(f"{metric} Bar Plot")
+    axes[0].set_ylabel(metric)
+    axes[0].grid(True)
+    axes[0].set_ylim(0, 1.2 if metric == 'PICP' else None)
+    axes[0].legend_.remove()
+
+    # -------- Radar Chart --------
+    categories = targets
+    N = len(categories)
+    angles = [n / float(N) * 2 * pi for n in range(N)]
+    angles += angles[:1]
+
+    ax_radar = plt.subplot(1, 2, 2, polar=True)
+
+    for source in sources:
+        values = df[df['Source'] == source][metric].tolist()
+        values += values[:1]
+        ax_radar.plot(angles, values, marker='o', label=source, color=color_map[source])
+        ax_radar.fill(angles, values, alpha=0.1, color=color_map[source])
+
+    ax_radar.set_xticks(angles[:-1])
+    ax_radar.set_xticklabels(categories)
+    ax_radar.set_title(f"{metric} Radar Plot")
+    ax_radar.set_ylim(0, 1.1 if metric == 'PICP' else None)
+
+    # Legend
+    handles = [plt.Line2D([], [], marker='o', color=color_map[src], label=src) for src in sources]
+    fig.legend(handles=handles, loc='upper center', ncol=len(sources), bbox_to_anchor=(0.5, 1.05), frameon=False)
+
+    # Save and show
+    os.makedirs("generalization/figs", exist_ok=True)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    filename = f"generalization/figs/barplusradar_{metric.lower()}_unified.png"
+    plt.savefig(filename, bbox_inches='tight')
+    print(f"Saved: {filename}")
+    plt.show()
+    plt.close()
+
 if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -90,7 +156,7 @@ if __name__ == "__main__":
             train_data, _ = preprocess_data(source_data)
             in_dim = train_data.x.shape[1]
 
-            model = train_model(train_data, in_dim, device, optimal_lambda, tau=tau, lam=lam)
+            model = train_model(train_data, in_dim, device, optimal_lambda=0.01, tau=tau, lam=lam)
 
             for target, test_data in target_testsets.items():
                 metrics = evaluate(model, test_data, device, tau)
@@ -112,3 +178,9 @@ if __name__ == "__main__":
 
     print("\n=== Generalization Summary ===")
     print(summary)
+    
+    # 예시 실행
+    plot_generalization_combined_with_consistent_colors(summary, metric='PICP')
+
+
+

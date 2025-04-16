@@ -105,6 +105,7 @@ class ConfGNN(torch.nn.Module):
         #print(base_model)
         self.confgnn = GNN_Multi_Layer(output_dim, args.confnn_hidden_dim, output_dim, base_model, args.heads, args.aggr, num_conf_layers)  
         self.task = task
+        
     def forward(self, x, edge_index):
         with torch.no_grad():
             scores = self.model(x, edge_index)

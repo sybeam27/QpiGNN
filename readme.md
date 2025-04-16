@@ -1,1 +1,1 @@
-Graph Quantile Neural Networks (GQNNs) for Uncertainty Quantification
+QpiGNN: A Quantile-based Prediction Interval Framework for Uncertainty Quantification in Graphs

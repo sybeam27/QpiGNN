@@ -1,26 +1,16 @@
-venv/
-gqnn_env/
 # dataset/
 
+env/
 bf/
-result/
 
-pred/
-pred (0401)/
+training/pred/
+training/pred (0401)/
 
-pred_cf/
-pred_gqnn/
+analysis/ablation/
+analysis/robust/
+analysis/sensitivity/
+analysis/lambda/
+analysis/generalization/
+analysis/tradeoff/
 
-params/
-
-ablation/
-ablation (0.01)/
-ablation (0.05)/
-
-robust/
-robust (0.05)/
-
-sensitivity/
-lambda/
-generalization/
-tradeoff/
+conformalized_gnn

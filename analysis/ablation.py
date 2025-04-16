@@ -1,4 +1,5 @@
 import os, time, pickle
+import sys
 from datetime import datetime
 from itertools import product
 import argparse
@@ -12,7 +13,7 @@ from PyPDF2 import PdfMerger
 import numpy as np
 from itertools import product
 
-# 유틸리티 함수 로드
+sys.path('../utills/')
 from utills.function import (
     set_seed, generate_graph_data, generate_noisy_graph_data,
     load_county_graph_data, load_twitch_graph_data,

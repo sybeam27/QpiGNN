@@ -111,7 +111,7 @@ python train.py --dataset "ChicagoSketch" --model "MC" --target_coverage 0.9
 
 # GQNN
 python train.py --dataset "basic" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "gaussian" --model "GQNN" --target4_coverage 0.9 --lambda_factor 0.5
+python train.py --dataset "gaussian" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
 python train.py --dataset "uniform" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
 python train.py --dataset "outlier" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
 python train.py --dataset "edge" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
@@ -120,16 +120,16 @@ python train.py --dataset "ER" --model "GQNN" --target_coverage 0.9 --lambda_fac
 python train.py --dataset "grid" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
 python train.py --dataset "tree" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
 
-python train.py --dataset "education" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "election" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "income" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "unemployment" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "PTBR" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "chameleon" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "crocodile" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "squirrel" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "Anaheim" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
-python train.py --dataset "ChicagoSketch" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.5
+python train.py --dataset "education" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python train.py --dataset "election" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python train.py --dataset "income" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python train.py --dataset "unemployment" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python train.py --dataset "PTBR" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python train.py --dataset "chameleon" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python train.py --dataset "crocodile" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python train.py --dataset "squirrel" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python train.py --dataset "Anaheim" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
+python train.py --dataset "ChicagoSketch" --model "GQNN" --target_coverage 0.9 --lambda_factor 0.1
 
 # GQNN (optimal)
 python train.py --dataset "basic" --model "GQNN" --target_coverage 0.9 --optimal

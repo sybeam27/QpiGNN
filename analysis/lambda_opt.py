@@ -48,13 +48,7 @@ from skopt.space import Real
 from skopt.utils import use_named_args
 from skopt.plots import plot_convergence
 
-# 실험용 설정
-target_coverage = 0.90
-lambda_list = np.logspace(-2, 0, num=10).tolist()
-dataset_list = ["Basic", "Edge", "ER", "BA", "Tree"]
-runs = 5
-epochs = 500
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 def select_optimal_lambda(dataset_name, lambda_list, target_coverage):
     best_lambda = None
@@ -220,17 +214,11 @@ def plot_lambda_sweep_subplots(logs_dict, result_dict, target_coverage):
     fig.savefig(fig_path, bbox_inches='tight')
     print(f"Saved subplot figure with legend: {fig_path}")
     plt.close()
-
-def get_lambda_list(logscale=False, num_points=10):
-    if logscale:
-        return np.round(np.logspace(np.log10(0.001), np.log10(0.1), num=num_points), 5).tolist()
-    else:
-        return np.round(np.linspace(0.005, 0.1, num=num_points), 5).tolist()
     
 # ---------------- Bayesian Optimization ---------------- #
-space = [Real(0.001, 0.1, name='lam')]
+space = [Real(0.1, 1.0, name='lam')]
 
-def run_lambda_optimization(data, target_coverage, epochs=300, runs=3):
+def run_lambda_optimization(data, target_coverage, epochs=500, runs=5):
     eval_log = []  # ← 여기에 로그 저장
 
     @use_named_args(space)
@@ -251,21 +239,25 @@ def run_lambda_optimization(data, target_coverage, epochs=300, runs=3):
         else:
             return mean_mpiw
 
+    initial_lambdas = [[0.3], [0.5], [0.7]]
+
     result = gp_minimize(
         func=objective,
         dimensions=space,
-        acq_func="EI",
+        x0=initial_lambdas,
+        n_random_starts=2,
         n_calls=20,
-        n_random_starts=5,
+        acq_func="EI",
         random_state=42
     )
+    
     return result, eval_log
 
 # ---------------- Main Entry ---------------- #
 if __name__ == "__main__":
     target_coverage = 0.90
     dataset_list = [
-                    # 'basic', 'gaussian', 'uniform', 'outlier', 'edge', 'BA', 'ER', 'grid', 'tree'
+                    'basic', 'gaussian', 'uniform', 'outlier', 'edge', 'BA', 'ER', 'grid', 'tree'
                     'education', 'election', 'income', 'unemployment', 'PTBR', 'chameleon', 'crocodile', 'squirrel', 'Anaheim', 'ChicagoSketch'
                     ]
     epochs = 500

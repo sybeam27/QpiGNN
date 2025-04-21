@@ -126,10 +126,10 @@ if args.pdf:
 
 if args.optimal:
     if args.dataset in ['basic', 'gaussian', 'uniform', 'outlier', 'edge', 'BA', 'ER', 'grid', 'tree']:
-        df = pd.read_csv("./lambda/syn/lambda_optimized_results.csv")
+        df = pd.read_csv("../analysis/lambda/syn/lambda_optimized_results.csv")
         optimal_lambda = df[df['Dataset'] == args.dataset]['Best Lambda'].values[0]
     else:
-        df = pd.read_csv("./lambda/real/lambda_optimized_results.csv")
+        df = pd.read_csv("../analysis/lambda/real/lambda_optimized_results.csv")
         optimal_lambda = df[df['Dataset'] == args.dataset]['Best Lambda'].values[0]
 
 file_name = args.dataset + '_' + args.model

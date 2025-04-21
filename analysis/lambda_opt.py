@@ -48,6 +48,8 @@ from skopt.space import Real
 from skopt.utils import use_named_args
 from skopt.plots import plot_convergence
 
+plt.rcParams["font.family"] = "Times New Roman"
+
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 def select_optimal_lambda(dataset_name, lambda_list, target_coverage):
@@ -257,7 +259,7 @@ def run_lambda_optimization(data, target_coverage, epochs=500, runs=5):
 if __name__ == "__main__":
     target_coverage = 0.90
     dataset_list = [
-                    'basic', 'gaussian', 'uniform', 'outlier', 'edge', 'BA', 'ER', 'grid', 'tree'
+                    # 'basic', 'gaussian', 'uniform', 'outlier', 'edge', 'BA', 'ER', 'grid', 'tree'
                     'education', 'election', 'income', 'unemployment', 'PTBR', 'chameleon', 'crocodile', 'squirrel', 'Anaheim', 'ChicagoSketch'
                     ]
     epochs = 500

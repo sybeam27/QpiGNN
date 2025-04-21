@@ -13,7 +13,7 @@ from utills.function import (
 
 def run_tradeoff_analysis(tau=0.9, lambda_list=None, runs=5, epochs=500, hidden_dim=64):
     if lambda_list is None:
-        lambda_list = np.round(np.linspace(0.001, 0.1, 10), 5).tolist()
+        lambda_list = np.round(np.linspace(0.1, 1.0, 20), 5).tolist()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     data = create_er_graph_pyg(n=1000)
@@ -74,10 +74,10 @@ def plot_tradeoff(df, tau):
     plt.plot(df['lambda'], df['MPIW'], 's--', label="MPIW", color='tab:red')
     plt.fill_between(df['lambda'], df['MPIW'] - df['std_MPIW'], df['MPIW'] + df['std_MPIW'], color='tab:red', alpha=0.2)
 
-    plt.xlabel("Lambda ($\\lambda$)")
-    plt.ylabel("Metric")
-    plt.title(f"Coverage–Width Trade-off (τ = {tau})")
-    plt.legend()
+    plt.xlabel("Lambda ($\\lambda$)", size = 10)
+    plt.ylabel("Metric", size = 10)
+    plt.title(f"Coverage–Width Trade-off (τ = {tau})", size=12)
+    plt.legend(fontsize = 10)
     plt.grid(True)
     plt.tight_layout()
 

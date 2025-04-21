@@ -23,56 +23,28 @@ from utills.function import (
     evaluate_model_performance, sort_by_y
 )
 
-# def generate_valid_ablation_configs():
-#     configs = []
-#     for dual_output in [True, False]:
-#         for fixed_margin in [None, 0.05, 0.1]:
-#             # fixed_margin은 dual_output=True일 때만 의미 있음
-#             if fixed_margin is not None and not dual_output:
-#                 continue
-
-#             for use_sample_loss, use_coverage_loss, use_width_loss in product([True, False], repeat=3):
-#                 # 1. 모든 loss가 꺼져 있으면 스킵
-#                 if not (use_sample_loss or use_coverage_loss or use_width_loss):
-#                     continue
-
-#                 # 2. coverage loss만 켜져 있으면 학습 불가 → 스킵
-#                 if use_coverage_loss and not (use_sample_loss or use_width_loss):
-#                     continue
-
-#                 config = {
-#                     'dual_output': dual_output,
-#                     'fixed_margin': fixed_margin,
-#                     'use_sample_loss': use_sample_loss,
-#                     'use_coverage_loss': use_coverage_loss,
-#                     'use_width_loss': use_width_loss,
-#                 }
-#                 configs.append(config)
-#     return configs
-
 def generate_valid_ablation_configs():
-    
+    from itertools import product
+
     def format_margin(val):
         if val is None:
             return "None"
         return f"{val:.2f}"
 
+    # Architecture ablation configs
     configs_to_include_arch = [
-        # Architecture ablation
-        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
-        "dual_output(1)_fixed_margin(0.05)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
-        "dual_output(1)_fixed_margin(0.10)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
-        "dual_output(0)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(None)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(0.05)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(0.10)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(0)_fixed_margin(None)_use_coverage_loss(1)_use_width_loss(1)",
     ]
 
+    # Loss ablation configs
     configs_to_include_loss = [
-        # Loss ablation
-        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(1)",
-        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(1)_use_width_loss(0)",
-        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(0)_use_width_loss(1)",
-        "dual_output(1)_fixed_margin(None)_use_sample_loss(0)_use_coverage_loss(1)_use_width_loss(1)",
-        "dual_output(1)_fixed_margin(None)_use_sample_loss(0)_use_coverage_loss(0)_use_width_loss(1)",
-        "dual_output(1)_fixed_margin(None)_use_sample_loss(1)_use_coverage_loss(0)_use_width_loss(0)",
+        "dual_output(1)_fixed_margin(None)_use_coverage_loss(1)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(None)_use_coverage_loss(1)_use_width_loss(0)",
+        "dual_output(1)_fixed_margin(None)_use_coverage_loss(0)_use_width_loss(1)",
+        "dual_output(1)_fixed_margin(None)_use_coverage_loss(0)_use_width_loss(0)",
     ]
 
     allowed_config_strs = set(configs_to_include_arch + configs_to_include_loss)
@@ -83,11 +55,10 @@ def generate_valid_ablation_configs():
             if fixed_margin is not None and not dual_output:
                 continue
 
-            for use_sample_loss, use_coverage_loss, use_width_loss in product([True, False], repeat=3):
+            for use_coverage_loss, use_width_loss in product([True, False], repeat=2):
                 config = {
                     'dual_output': dual_output,
                     'fixed_margin': fixed_margin,
-                    'use_sample_loss': use_sample_loss,
                     'use_coverage_loss': use_coverage_loss,
                     'use_width_loss': use_width_loss,
                 }
@@ -95,10 +66,10 @@ def generate_valid_ablation_configs():
                 config_str = (
                     f"dual_output({int(dual_output)})"
                     f"_fixed_margin({format_margin(fixed_margin)})"
-                    f"_use_sample_loss({int(use_sample_loss)})"
                     f"_use_coverage_loss({int(use_coverage_loss)})"
                     f"_use_width_loss({int(use_width_loss)})"
                 )
+
                 if config_str in allowed_config_strs:
                     configs.append(config)
 
@@ -152,34 +123,30 @@ class GQNN(torch.nn.Module):
     def forward(self, x, edge_index):
         x = F.relu(self.conv1(x, edge_index))
         x = F.relu(self.conv2(x, edge_index))
-        
+
         if self.dual_output:
             preds = self.fc_pred(x)
             if self.fixed_margin is not None:
                 diffs = torch.ones_like(preds) * self.fixed_margin
             else:
                 diffs = torch.sigmoid(self.fc_diff(x))
-                
+
             pred_low, pred_upper = preds - diffs, preds + diffs
             return pred_low, pred_upper
-        
+
         else:
             pred_low = self.fc_low(x)
             pred_upper = self.fc_upper(x)
-            
+
             return pred_low, pred_upper
-        
+
 class GQNNLoss(torch.nn.Module):
     def __init__(self, target_coverage=0.9, lambda_factor=0.1,
-                 use_sample_loss=True, use_coverage_loss=True, use_width_loss=True):
+                 use_coverage_loss=True, use_width_loss=True):
         super().__init__()
-
-        if not (use_sample_loss or use_coverage_loss or use_width_loss):
-            raise ValueError("All loss terms are disabled.")
 
         self.target_coverage = target_coverage
         self.lf = lambda_factor
-        self.use_sample_loss = use_sample_loss
         self.use_coverage_loss = use_coverage_loss
         self.use_width_loss = use_width_loss
 
@@ -187,29 +154,48 @@ class GQNNLoss(torch.nn.Module):
         diffs = (preds_upper - preds_low) / 2
         loss_terms = []
 
-        sample_loss_val = 0.0
+        mean_violation_val = 0.0
         coverage_penalty_val = 0.0
         width_penalty_val = 0.0
 
-        if self.use_sample_loss:
-            below_loss = torch.relu(preds_low - target)
-            above_loss = torch.relu(target - preds_upper)
-            sample_loss = below_loss + above_loss
-            sample_loss_val = sample_loss.mean()
-            loss_terms.append(sample_loss_val)
+        if not self.use_coverage_loss and not self.use_width_loss:
+            # fallback to MSE on center prediction
+            point_pred = (preds_low + preds_upper) / 2
+            mse_loss = F.mse_loss(point_pred, target)
+            self.last_loss_terms = {
+                'mse': mse_loss.item(),
+                'violation': 0.0,
+                'coverage': 0.0,
+                'width': 0.0,
+            }
+            return mse_loss
 
         if self.use_coverage_loss:
+            # Violation loss (sample-level penalty)
+            below_violation = torch.relu(preds_low - target)
+            above_violation = torch.relu(target - preds_upper)
+            total_violation = below_violation + above_violation
+            is_violated = (target < preds_low) | (target > preds_upper)
+            violation_count = is_violated.float().sum()
+
+            if violation_count > 0:
+                mean_violation_val = (total_violation * is_violated.float()).sum() / violation_count
+            else:
+                mean_violation_val = torch.tensor(0.0, device=target.device, requires_grad=True)
+
+            # Coverage penalty (global-level)
             covered = (preds_low <= target) & (target <= preds_upper)
             current_coverage = covered.float().mean()
-            coverage_penalty_val = (current_coverage - self.target_coverage) ** 2
-            loss_terms.append(coverage_penalty_val)
+            coverage_penalty_val = (self.target_coverage - current_coverage) ** 2
+
+            loss_terms.append(mean_violation_val + coverage_penalty_val)
 
         if self.use_width_loss:
             width_penalty_val = self.lf * 2 * diffs.mean()
             loss_terms.append(width_penalty_val)
-            
+
         self.last_loss_terms = {
-            'sample': sample_loss_val.item() if isinstance(sample_loss_val, torch.Tensor) else 0.0,
+            'violation': mean_violation_val.item() if isinstance(mean_violation_val, torch.Tensor) else 0.0,
             'coverage': coverage_penalty_val.item() if isinstance(coverage_penalty_val, torch.Tensor) else 0.0,
             'width': width_penalty_val.item() if isinstance(width_penalty_val, torch.Tensor) else 0.0,
         }
@@ -250,6 +236,9 @@ def save_prediction_plots(phase, x, y, low, upper, true_y, args, color, config_n
 
 def save_final_results(results, path):
     print('Saving results to', path)
+    
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    
     with open(path, 'wb') as f:
         pickle.dump(results, f)
 
@@ -297,7 +286,6 @@ def train_and_evaluate(model, criterion, optimizer, train_data, test_data, args,
     results[run] = result_this_run
     print(f'Finished training run {run}')
 
-
 # ----------------------------- 메인 실행 -----------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -307,7 +295,7 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=500)
     parser.add_argument('--runs', type=int, default=5)
     parser.add_argument('--device', type=str, default='cuda:0')
-    parser.add_argument('--lambda_factor', type=float, default=0.05)
+    parser.add_argument('--lambda_factor', type=float, default=0.5)
     parser.add_argument('--target_coverage', type=float, default=0.9, help='Target coverage level (1 - α)')
     parser.add_argument('--nodes', type=float, default=1000, help='num_nodes')
     parser.add_argument('--noise', type=float, default=0.3, help='noise_level')
@@ -315,7 +303,7 @@ if __name__ == "__main__":
 
     device = torch.device(args.device)
     set_seed(1127)
-    
+
     if args.pdf == True:
         args.pdf_dir = f"./ablation/{args.dataset}/pdf"
         os.makedirs(args.pdf_dir, exist_ok=True)
@@ -345,7 +333,7 @@ if __name__ == "__main__":
 
     train_data, test_data = split_graph_data(graph_data, test_ratio=0.2)
     train_min, train_max, y_min, y_max = train_data.x.min(), train_data.x.max(), train_data.y.min(), train_data.y.max()
-    train_data.x, test_data.x, train_data.y, test_data.y= normalize(train_data.x, train_min, train_max), normalize(test_data.x, train_min, train_max), normalize(train_data.y, y_min, y_max), normalize(test_data.y, y_min, y_max)
+    train_data.x, test_data.x, train_data.y, test_data.y = normalize(train_data.x, train_min, train_max), normalize(test_data.x, train_min, train_max), normalize(train_data.y, y_min, y_max), normalize(test_data.y, y_min, y_max)
 
     # Ablation 조합 생성
     ablations = generate_valid_ablation_configs()
@@ -358,7 +346,6 @@ if __name__ == "__main__":
     for i, config in enumerate(ablations):
         color = color_bar[i]
 
-        # config_name 만들기 (float 값 처리 포함)
         def format_val(v):
             if isinstance(v, bool):
                 return int(v)
@@ -385,7 +372,6 @@ if __name__ == "__main__":
             criterion = GQNNLoss(
                 target_coverage=args.target_coverage,
                 lambda_factor=args.lambda_factor,
-                use_sample_loss=config['use_sample_loss'],
                 use_coverage_loss=config['use_coverage_loss'],
                 use_width_loss=config['use_width_loss']
             )
@@ -401,4 +387,3 @@ if __name__ == "__main__":
             )
 
         save_final_results(results, f"./ablation/{args.dataset}/{config_name}.pkl")
-

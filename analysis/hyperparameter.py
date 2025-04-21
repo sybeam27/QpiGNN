@@ -111,16 +111,16 @@ def plot_sensitivity_matrix(results, target_coverages, lambdas):
         axes[1].plot(lambdas, mpiw_matrix[i], marker='s', color=color, linestyle=style, label=f"Target={tc}")
 
     # PICP subplot
-    axes[0].set_ylabel("PICP (%)")
-    axes[0].set_title("PICP vs. Lambda")
+    axes[0].set_ylabel("PICP (%)", size =10)
+    axes[0].set_title("PICP vs. Lambda", size = 12)
 
     # MPIW subplot
-    axes[1].set_xlabel("Lambda (Width Penalty)")
-    axes[1].set_ylabel("MPIW")
-    axes[1].set_title("MPIW vs. Lambda")
+    axes[1].set_xlabel("Lambda (Width Penalty)", size=10)
+    axes[1].set_ylabel("MPIW", size-10)
+    axes[1].set_title("MPIW vs. Lambda", size=12)
 
     # 범례 (하단 subplot에만 넣고 하나로 통합)
-    axes[1].legend(title="Target Coverage")
+    axes[1].legend(title="Target Coverage", size = 10)
 
     # 그리드와 레이아웃 정리
     for ax in axes:
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     device = torch.device(args.device)
 
     target_coverages = [0.80, 0.85, 0.90, 0.95]
-    lambda_factors = [0.005, 0.01, 0.03, 0.05, 0.07, 0.1]
+    lambda_factors = [0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0]
 
     results = run_sensitivity_experiment(target_coverages, lambda_factors, device, args)
     save_results_to_csv(results)

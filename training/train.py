@@ -34,12 +34,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from torch_geometric.transforms import RandomNodeSplit
 
-sys.path('../utills/')
+sys.path.append('..')
 from utills.function import set_seed, generate_graph_data, generate_noisy_graph_data, load_county_graph_data, load_twitch_graph_data, \
             load_wiki_graph_data, load_trans_graph_data, create_ba_graph_pyg, create_er_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg, \
             normalize, split_graph_data, split_cp_graph_data, evaluate_model_performance, sort_by_y, coverage_width, \
                 get_gpu_memory, get_cpu_memory, count_parameters
-from utills.model import GQNN_R, GQNN_N, BayesianGNN, MCDropoutGNN, GQNN, QRLoss, RQRLoss, GQNNLoss, GQNNLoss2
+from utills.model import GQNN_R, GQNN_N, BayesianGNN, MCDropoutGNN, GQNN, QRLoss, RQRLoss, GQNNLoss
 
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 # os.environ["TORCH_USE_CUDA_DSA"] = "1"
@@ -214,7 +214,7 @@ for run in tqdm(range(args.runs)):
         color = pastel_colors[1]
         model = GQNN_N(in_dim=in_dim, hidden_dim=args.hidden_dim).to(device)
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight)
-        criterion = RQRLoss(target=args.target_coverage, lambda_factor=args.lambda_factor)  # lambda_factor 고정함
+        criterion = RQRLoss(target=args.target_coverage, lambda_factor=0.1)  # lambda_factor 고정함
         
         torch.cuda.reset_peak_memory_stats()  # GPU peak 메모리 초기화
         start_time = time.time()    

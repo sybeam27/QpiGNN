@@ -8,7 +8,7 @@ import os
 import matplotlib.pyplot as plt
 import csv
 
-sys.path('../utills/')
+sys.path.append('..')
 from utills.model import GQNN, GQNNLoss
 from utills.function import (
     generate_graph_data, create_tree_graph_pyg, create_er_graph_pyg, split_graph_data, normalize, 

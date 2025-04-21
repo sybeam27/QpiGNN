@@ -34,12 +34,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from torch_geometric.transforms import RandomNodeSplit
 
-sys.path('../utills/')
+sys.path.append('..')
 from utills.function import set_seed, generate_graph_data, generate_noisy_graph_data, load_county_graph_data, load_twitch_graph_data, \
             load_wiki_graph_data, load_trans_graph_data, create_ba_graph_pyg, create_er_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg, \
             normalize, split_graph_data, split_cp_graph_data, evaluate_model_performance, sort_by_y, coverage_width, \
                 get_gpu_memory, get_cpu_memory, count_parameters
-from utills.model import GQNN_R, GQNN_N, BayesianGNN, MCDropoutGNN, GQNN, QRLoss, RQRLoss, GQNNLoss, GQNNLoss2
+from utills.model import GQNN_R, GQNN_N, BayesianGNN, MCDropoutGNN, GQNN, QRLoss, RQRLoss, GQNNLoss
 
 import matplotlib.pyplot as plt
 import os
@@ -50,7 +50,7 @@ from skopt.plots import plot_convergence
 
 # 실험용 설정
 target_coverage = 0.90
-lambda_list = [0.005, 0.01, 0.03, 0.05, 0.07, 0.1]
+lambda_list = np.logspace(-2, 0, num=10).tolist()
 dataset_list = ["Basic", "Edge", "ER", "BA", "Tree"]
 runs = 5
 epochs = 500
@@ -268,8 +268,8 @@ if __name__ == "__main__":
                     # 'basic', 'gaussian', 'uniform', 'outlier', 'edge', 'BA', 'ER', 'grid', 'tree'
                     'education', 'election', 'income', 'unemployment', 'PTBR', 'chameleon', 'crocodile', 'squirrel', 'Anaheim', 'ChicagoSketch'
                     ]
-    epochs = 300
-    runs = 3
+    epochs = 500
+    runs = 5
 
     logs_dict = {}
     result_dict = {}

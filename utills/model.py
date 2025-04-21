@@ -207,68 +207,103 @@ class GQNN(torch.nn.Module):
             
             return pred_low, pred_upper
          
+# class GQNNLoss(nn.Module):
+#     def __init__(self, target_coverage=0.9, lambda_factor=0.1):
+#         super().__init__()
+#         self.target_coverage = target_coverage
+#         self.lf = lambda_factor
+    
+#     def forward(self, preds_low, preds_upper, target):
+#         # 구간 폭 계산
+#         diffs = (preds_upper - preds_low) / 2
+        
+#         # 샘플별 커버리지 손실 계산
+#         below_loss = torch.relu(preds_low - target)  # target < preds_low
+#         above_loss = torch.relu(target - preds_upper)  # target > preds_upper
+#         sample_loss = below_loss + above_loss  # 구간 밖일 때 손실
+#         # 평균 샘플 손실 (구간 밖 거리 최소화)
+#         mean_sample_loss = sample_loss.mean()
+        
+#         # 커버리지 계산: 구간 안에 있는 샘플 비율
+#         covered = (preds_low <= target) & (target <= preds_upper)
+#         current_coverage = covered.float().mean()
+        
+#         # 커버리지 손실: 목표 커버리지와의 차이를 패널티로
+#         # coverage_penalty = torch.relu(self.target_coverage - current_coverage) ** 2
+#         coverage_penalty = (self.target_coverage - current_coverage) ** 2
+        
+#         # 폭 패널티
+#         width_loss = self.lf * 2 * diffs.mean()
+        
+#         # 최종 손실: 샘플 손실 + 커버리지 패널티 + 폭 패널티
+#         return mean_sample_loss + coverage_penalty + width_loss
+
 class GQNNLoss(nn.Module):
     def __init__(self, target_coverage=0.9, lambda_factor=0.1):
         super().__init__()
         self.target_coverage = target_coverage
         self.lf = lambda_factor
-    
+
     def forward(self, preds_low, preds_upper, target):
-        # 구간 폭 계산
+        # 폭 계산
         diffs = (preds_upper - preds_low) / 2
-        
-        # 샘플별 커버리지 손실 계산
-        below_loss = torch.relu(preds_low - target)  # target < preds_low
-        above_loss = torch.relu(target - preds_upper)  # target > preds_upper
-        sample_loss = below_loss + above_loss  # 구간 밖일 때 손실
-        # 평균 샘플 손실 (구간 밖 거리 최소화)
-        mean_sample_loss = sample_loss.mean()
-        
-        # 커버리지 계산: 구간 안에 있는 샘플 비율
+        width_loss = self.lf * 2 * diffs.mean()
+
+        # 커버리지 밖 위반 거리 계산
+        below_violation = torch.relu(preds_low - target)   # y_i < lower
+        above_violation = torch.relu(target - preds_upper) # y_i > upper
+        total_violation = below_violation + above_violation
+
+        # 위반된 샘플만 선택
+        is_violated = (target < preds_low) | (target > preds_upper)
+        violation_count = is_violated.float().sum()
+
+        # 평균 위반 거리 (구간 밖 샘플에 대해만)
+        if violation_count > 0:
+            mean_violation = (total_violation * is_violated.float()).sum() / violation_count
+        else:
+            mean_violation = torch.tensor(0.0, device=target.device)
+
+        # coverage 비율과 목표 coverage 간의 차이
         covered = (preds_low <= target) & (target <= preds_upper)
         current_coverage = covered.float().mean()
-        
-        # 커버리지 손실: 목표 커버리지와의 차이를 패널티로
-        # coverage_penalty = torch.relu(self.target_coverage - current_coverage) ** 2
-        coverage_penalty = (self.target_coverage - current_coverage) ** 2
-        
-        # 폭 패널티
-        width_loss = self.lf * 2 * diffs.mean()
-        
-        # 최종 손실: 샘플 손실 + 커버리지 패널티 + 폭 패널티
-        return mean_sample_loss + coverage_penalty + width_loss
-    
-class GQNNLoss2(nn.Module): 
-    def __init__(self, lambda_width=0.1, target_coverage=0.9, beta=10.0):
-        super().__init__()
-        self.target_coverage = target_coverage  # 목표 커버리지
-        self.lambda_width = lambda_width        # 구간 폭 패널티 가중치
-        self.beta = beta                        # 시그모이드 근사 강도 (클수록 지시 함수에 가까워짐)
-    
-    def soft_coverage(self, preds_low, preds_upper, target):
-        # preds_low <= target <= preds_upper를 시그모이드로 근사
-        lower_bound = torch.sigmoid(self.beta * (target - preds_low))  # target >= preds_low
-        upper_bound = torch.sigmoid(self.beta * (preds_upper - target))  # target <= preds_upper
-        return lower_bound * upper_bound  # 두 조건의 곱으로 커버리지 근사
-    
-    def forward(self, preds_low, preds_upper, target):
-        # 1. 샘플 손실: Softplus로 부드럽게
-        below_loss = nn.functional.softplus(preds_low - target)  # target < preds_low
-        above_loss = nn.functional.softplus(target - preds_upper)  # target > preds_upper
-        sample_loss = (below_loss + above_loss).mean()
-
-        # 2. 커버리지 계산 및 패널티
-        soft_covered = self.soft_coverage(preds_low, preds_upper, target)  # 부드러운 커버리지
-        current_coverage = soft_covered.mean()
         coverage_penalty = (self.target_coverage - current_coverage) ** 2
 
-        # 3. 구간 폭 패널티
-        diffs = preds_upper - preds_low
-        width_penalty = self.lambda_width * diffs.mean()
+        # 최종 손실: unified coverage loss + width penalty
+        return mean_violation + coverage_penalty + width_loss
 
-        # 4. 최종 손실
-        total_loss = sample_loss + coverage_penalty + width_penalty
-        return total_loss
+
+# class GQNNLoss2(nn.Module): 
+#     def __init__(self, lambda_width=0.1, target_coverage=0.9, beta=10.0):
+#         super().__init__()
+#         self.target_coverage = target_coverage  # 목표 커버리지
+#         self.lambda_width = lambda_width        # 구간 폭 패널티 가중치
+#         self.beta = beta                        # 시그모이드 근사 강도 (클수록 지시 함수에 가까워짐)
+    
+#     def soft_coverage(self, preds_low, preds_upper, target):
+#         # preds_low <= target <= preds_upper를 시그모이드로 근사
+#         lower_bound = torch.sigmoid(self.beta * (target - preds_low))  # target >= preds_low
+#         upper_bound = torch.sigmoid(self.beta * (preds_upper - target))  # target <= preds_upper
+#         return lower_bound * upper_bound  # 두 조건의 곱으로 커버리지 근사
+    
+#     def forward(self, preds_low, preds_upper, target):
+#         # 1. 샘플 손실: Softplus로 부드럽게
+#         below_loss = nn.functional.softplus(preds_low - target)  # target < preds_low
+#         above_loss = nn.functional.softplus(target - preds_upper)  # target > preds_upper
+#         sample_loss = (below_loss + above_loss).mean()
+
+#         # 2. 커버리지 계산 및 패널티
+#         soft_covered = self.soft_coverage(preds_low, preds_upper, target)  # 부드러운 커버리지
+#         current_coverage = soft_covered.mean()
+#         coverage_penalty = (self.target_coverage - current_coverage) ** 2
+
+#         # 3. 구간 폭 패널티
+#         diffs = preds_upper - preds_low
+#         width_penalty = self.lambda_width * diffs.mean()
+
+#         # 4. 최종 손실
+#         total_loss = sample_loss + coverage_penalty + width_penalty
+#         return total_loss
     
 # class GNN_CP(nn.Module):
 #     def __init__(self, in_dim, hidden_dim):

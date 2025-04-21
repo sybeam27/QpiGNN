@@ -136,7 +136,7 @@ def parse_mean_fill(series, normalize=False):
     return series.values
 
 def read_county(prediction, year):
-    adj = pd.read_csv("dataset/election/adjacency.txt", header=None, sep="\t", dtype=str, encoding="ISO-8859-1")
+    adj = pd.read_csv("../dataset/election/adjacency.txt", header=None, sep="\t", dtype=str, encoding="ISO-8859-1")
     fips2cty = {row[1]: row[0] for _, row in adj.iterrows() if pd.notna(row[1])}
     
     hh = adj.iloc[:, 1].ffill().astype(int)
@@ -150,11 +150,11 @@ def read_county(prediction, year):
     G.add_edges_from([(id2num[h], id2num[t]) for h, t in zip(hh, tt)])
     
     # Load datasets
-    VOT = pd.read_csv("dataset/election/election.csv")
-    ICM = pd.read_csv("dataset/election/income.csv")
-    POP = pd.read_csv("dataset/election/population.csv")
-    EDU = pd.read_csv("dataset/election/education.csv")
-    UEP = pd.read_csv("dataset/election/unemployment.csv")
+    VOT = pd.read_csv("../dataset/election/election.csv")
+    ICM = pd.read_csv("../dataset/election/income.csv")
+    POP = pd.read_csv("../dataset/election/population.csv")
+    EDU = pd.read_csv("../dataset/election/education.csv")
+    UEP = pd.read_csv("../dataset/election/unemployment.csv")
     
     cty = pd.DataFrame({'FIPS': fips, 'County': [fips2cty.get(f, '') for f in fips]})
     vot = VOT[['fips_code', f'dem_{year}', f'gop_{year}']].rename(columns={'fips_code': 'FIPS'})
@@ -218,11 +218,11 @@ def load_county_graph_data(prediction: str, year: int):
 
 def read_transportation_network(network_name, net_skips, net_cols, netf_cols, flow_skips, flow_cols, V_range):
     # Load data
-    dat_net = pd.read_csv(f"dataset/transportation/{network_name}/{network_name}_net.tntp", 
+    dat_net = pd.read_csv(f"../dataset/transportation/{network_name}/{network_name}_net.tntp", 
                            skiprows=net_skips, sep='\s+', usecols=net_cols, header=None).values
-    dat_netf = pd.read_csv(f"dataset/transportation/{network_name}/{network_name}_net.tntp", 
+    dat_netf = pd.read_csv(f"../dataset/transportation/{network_name}/{network_name}_net.tntp", 
                             skiprows=net_skips, sep='\s+', usecols=netf_cols, header=None).values
-    dat_flow = pd.read_csv(f"dataset/transportation/{network_name}/{network_name}_flow.tntp", 
+    dat_flow = pd.read_csv(f"../dataset/transportation/{network_name}/{network_name}_flow.tntp", 
                             skiprows=flow_skips, sep='\s+', usecols=flow_cols, header=None).values
     
     # Map node labels to indices
@@ -325,7 +325,7 @@ def read_twitch_network(cnm, dim_reduction=False, dim_embed=8):
     countries = ["DE", "ENGB", "ES", "FR", "PTBR", "RU"]
     
     for cn in countries:
-        with open(f"dataset/twitch/{cn}/musae_{cn}_features.json", "r") as f:
+        with open(f"../dataset/twitch/{cn}/musae_{cn}_features.json", "r") as f:
             feats = json.load(f)
         feats_all.extend(feats.values())
 
@@ -344,7 +344,7 @@ def read_twitch_network(cnm, dim_reduction=False, dim_embed=8):
 
     f_all = list(map(feat_encode, feats_all))
 
-    with open(f"dataset/twitch/{cnm}/musae_{cnm}_features.json", "r") as f:
+    with open(f"../dataset/twitch/{cnm}/musae_{cnm}_features.json", "r") as f:
         feats = json.load(f)
 
     id2ft = {int(k) + 1: v for k, v in feats.items()}
@@ -362,11 +362,11 @@ def read_twitch_network(cnm, dim_reduction=False, dim_embed=8):
     g = nx.Graph()
     g.add_nodes_from(range(1, len(f) + 1))
 
-    links = pd.read_csv(f"dataset/twitch/{cnm}/musae_{cnm}_edges.csv")
+    links = pd.read_csv(f"../dataset/twitch/{cnm}/musae_{cnm}_edges.csv")
     for _, row in links.iterrows():
         g.add_edge(row["from"] + 1, row["to"] + 1)
 
-    trgts = pd.read_csv(f"dataset/twitch/{cnm}/musae_{cnm}_target.csv")
+    trgts = pd.read_csv(f"../dataset/twitch/{cnm}/musae_{cnm}_target.csv")
     nid2views = dict(zip(trgts["new_id"], trgts["views"]))
     y = std_normalize(np.log([nid2views[i - 1] + 1.0 for i in range(1, g.number_of_nodes() + 1)]))
 
@@ -392,9 +392,9 @@ def load_twitch_graph_data(cnm: str):
     return pyg_data
 
 def load_wiki_graph_data(category):
-    edge_path = f'dataset/wikipedia/{category}/musae_{category}_edges.csv'
-    feature_path = f'dataset/wikipedia/{category}/musae_{category}_features.json'
-    target_path = f'dataset/wikipedia/{category}/musae_{category}_target.csv'
+    edge_path = f'../dataset/wikipedia/{category}/musae_{category}_edges.csv'
+    feature_path = f'../dataset/wikipedia/{category}/musae_{category}_features.json'
+    target_path = f'../dataset/wikipedia/{category}/musae_{category}_target.csv'
     
     # 엣지 데이터 로드
     edge_df = pd.read_csv(edge_path)

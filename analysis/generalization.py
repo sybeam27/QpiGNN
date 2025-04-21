@@ -5,7 +5,7 @@ import sys
 import pandas as pd
 import torch.optim as optim
 
-sys.path('../utills/')
+sys.path.append('..')
 from utills.model import GQNN, GQNNLoss
 from utills.function import (
     set_seed, generate_graph_data, create_er_graph_pyg, create_ba_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg,

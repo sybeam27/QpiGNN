@@ -9,7 +9,7 @@ import csv
 
 sys.path.append('..')
 from utills.model import GQNN, GQNNLoss
-from utills.function import generate_graph_data, create_er_graph_pyg, split_graph_data, normalize
+from utills.function import create_er_graph_pyg, split_graph_data, normalize
 
 # ---------------- Evaluation ---------------- #
 def evaluate_model_performance(preds_low, preds_upper, targets, target=0.9):
@@ -22,7 +22,6 @@ def evaluate_model_performance(preds_low, preds_upper, targets, target=0.9):
     penalty = 1 + gamma * np.exp(-eta * (picp - target))
     cwc = nmpiw * penalty
 
-    print(f"종합 - CWC ⬇: {cwc:.4f} | PICP ⬆: {picp:.4f} | MPIW ⬇: {interval_width:.4f}")
     return {"PICP": picp, "MPIW": interval_width, "CWC": cwc}
 
 # ---------------- Perturbations ---------------- #
@@ -39,7 +38,6 @@ def add_target_noise(y, std):
 
 # ---------------- Main Experiment ---------------- #
 def run_robustness_experiment(noise_type, levels, device, args):
-    # base_graph = generate_graph_data(num_nodes=1000)
     base_graph = create_er_graph_pyg(n=1000)
     train_data, test_data = split_graph_data(base_graph, test_ratio=0.2)
     in_dim = train_data.x.shape[1]
@@ -49,7 +47,6 @@ def run_robustness_experiment(noise_type, levels, device, args):
         train_data_ = train_data.clone()
         test_data_ = test_data.clone()
 
-        # Apply perturbation
         if noise_type == "feature":
             train_data_.x = add_gaussian_noise(train_data_.x, std=level)
         elif noise_type == "edge":
@@ -65,15 +62,14 @@ def run_robustness_experiment(noise_type, levels, device, args):
         train_data.y = normalize(train_data.y, y_min, y_max)
         test_data.y = normalize(test_data.y, y_min, y_max)
 
-        # Run model multiple times
         picps, mpiws = [], []
-        for run in range(args.runs):
+        for _ in range(args.runs):
             model = GQNN(in_dim=in_dim, hidden_dim=64).to(device)
             criterion = GQNNLoss(target_coverage=0.9, lambda_factor=0.05)
             optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
             model.train()
-            for epoch in range(args.epochs):
+            for _ in range(args.epochs):
                 optimizer.zero_grad()
                 pl, pu = model(train_data_.x.to(device), train_data_.edge_index.to(device))
                 loss = criterion(pl, pu, train_data_.y.to(device))
@@ -85,17 +81,14 @@ def run_robustness_experiment(noise_type, levels, device, args):
                 pl, pu = model(test_data_.x.to(device), test_data_.edge_index.to(device))
                 metrics = evaluate_model_performance(
                     pl.cpu().numpy(), pu.cpu().numpy(), test_data.y.cpu().numpy(), target=0.9)
-                picps.append(metrics['PICP'] * 100)
+                picps.append(metrics['PICP'])
                 mpiws.append(metrics['MPIW'])
 
-        # Calculate mean & std
-        mean_picp = np.mean(picps)
-        std_picp = np.std(picps)
-        mean_mpiw = np.mean(mpiws)
-        std_mpiw = np.std(mpiws)
-
-        results.append((level, mean_picp, mean_mpiw, std_picp, std_mpiw))
-        print(f"{noise_type}={level:.2f} → PICP={mean_picp:.2f}±{std_picp:.2f}%, MPIW={mean_mpiw:.3f}±{std_mpiw:.3f}")
+        results.append((
+            level,
+            np.mean(picps), np.mean(mpiws),
+            np.std(picps), np.std(mpiws)
+        ))
 
     return results
 
@@ -105,13 +98,11 @@ def save_results_csv(results, noise_type):
     filepath = f"robust/robustness_{noise_type}.csv"
     with open(filepath, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(["Noise_Level", "PICP", "MPIW"])
+        writer.writerow(["Noise_Level", "PICP", "MPIW", "std_PICP", "std_MPIW"])
         for row in results:
             writer.writerow(row)
-    print(f"Saved CSV: {filepath}")
 
 # ---------------- Plot ---------------- #
-# 라벨 공통 정의
 NOISE_LABELS = {
     "feature": "Gaussian Noise Std",
     "edge": "Edge Dropout Ratio",
@@ -119,19 +110,17 @@ NOISE_LABELS = {
 }
 
 def plot_tradeoff_scatter(noise_type, levels, results):
-    """PICP-MPIW tradeoff 시각화 (색상으로 노이즈 강도 표현)"""
     picps = [r[1] for r in results]
     mpiws = [r[2] for r in results]
 
     plt.figure(figsize=(6, 5))
     scatter = plt.scatter(mpiws, picps, c=levels, cmap='viridis', s=100, edgecolor='k')
 
-    # 텍스트 라벨 추가
     for i, lvl in enumerate(levels):
         plt.text(mpiws[i] + 0.01, picps[i], f"{lvl:.2f}", fontsize=9)
 
     plt.colorbar(scatter, label=NOISE_LABELS[noise_type])
-    plt.axhline(y=0.9, color='red', linestyle='--', linewidth=1.2, label='Target PICP (0.9)')
+    plt.axhline(y=90, color='red', linestyle='--', linewidth=1.2, label='Target PICP (90%)')
     plt.xlabel("MPIW (↓)")
     plt.ylabel("PICP (↑)")
     plt.title(f"Trade-off under {noise_type.capitalize()} Noise")
@@ -142,22 +131,14 @@ def plot_tradeoff_scatter(noise_type, levels, results):
     os.makedirs("robust/figs", exist_ok=True)
     path = f"robust/figs/robustness_tradeoff_{noise_type}.png"
     plt.savefig(path)
-    print(f"Saved: {path}")
     plt.close()
 
 def plot_results_combined(results_dict):
-    """Dual-axis PICP/MPIW 시각화 (노이즈 타입별)"""
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import os
-
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
     for idx, (noise_type, (levels, results)) in enumerate(results_dict.items()):
-        # level 0.0 제거
-        filtered = [(l, r) for l, r in zip(levels, results) if l != 0.0]
-        levels, results = zip(*filtered)
-
+        # 0.0 레벨 제거
+        levels, results = zip(*[(l, r) for l, r in zip(levels, results) if l != 0.0])
         picps = [r[1] for r in results]
         mpiws = [r[2] for r in results]
         std_picps = [r[3] for r in results]
@@ -166,36 +147,38 @@ def plot_results_combined(results_dict):
         ax1 = axes[idx]
         ax2 = ax1.twinx()
 
-        # PICP (왼쪽 축)
-        l1 = ax1.errorbar(levels, picps, yerr=std_picps, fmt='o-', color='tab:blue',
-                          label="PICP", capsize=3, alpha=0.9)
-        ax1.set_ylabel("PICP (↑)", fontsize=12, color='tab:blue')
-        ax1.tick_params(axis='y', labelcolor='tab:blue')
-        # ax1.set_ylim(0.0, 1.05)
+        # PICP (왼쪽 y축)
+        l1 = ax1.errorbar(
+            levels, picps, yerr=std_picps,
+            fmt='o-', color='tab:blue', label="PICP", capsize=3, alpha=0.9
+        )
+        ax1.set_ylabel("PICP (↑)", size = 11)
+        ax1.set_ylim(0.7, 1.05)
+        ax1.tick_params(axis='y')
 
-        # MPIW (오른쪽 축)
-        l2 = ax2.errorbar(levels, mpiws, yerr=std_mpiws, fmt='s--', color='tab:red',
-                          label="MPIW", capsize=3, alpha=0.9)
-        ax2.set_ylabel("MPIW (↓)", fontsize=12, color='tab:red')
-        ax2.tick_params(axis='y', labelcolor='tab:red')
-        ax2.set_ylim(0.0, 2.05)
+        # MPIW (오른쪽 y축)
+        l2 = ax2.errorbar(
+            levels, mpiws, yerr=std_mpiws,
+            fmt='s--', color='tab:red', label="MPIW", capsize=3, alpha=0.9
+        )
+        ax2.set_ylabel("MPIW (↓)", size = 11)
+        ax1.set_ylim(0.1, 2.05)
+        ax2.tick_params(axis='y')
 
-        ax1.set_xlabel(NOISE_LABELS[noise_type], fontsize=12)
-        ax1.set_title(f"{noise_type.capitalize()} Noise", fontsize=15)
+        # 공통 X축 및 제목
+        ax1.set_xlabel(NOISE_LABELS[noise_type])
+        ax1.set_title(f"{noise_type.capitalize()} Noise")
         ax1.grid(True)
 
-        # 공통 범례
-        lines = l1[0], l2[0]
-        labels = [line.get_label() for line in lines]
-        ax1.legend(lines, labels, loc='upper right', fontsize=10)
+        # 범례 추가 (ax1 기준으로만 처리)
+        ax1.legend([l1[0], l2[0]], ['PICP', 'MPIW'], loc='upper left', fontsize=11)
 
     plt.tight_layout()
     os.makedirs("robust/figs", exist_ok=True)
-    out_path = "robust/figs/robustness_all_dualaxis.png"
-    plt.savefig(out_path)
-    print(f"Saved Dual-Axis Figure: {out_path}")
+    plt.savefig("robust/figs/robustness_all_dualaxis.png")
+    print("Saved: robustness_all_dualaxis.png")
     plt.close()
-    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs", type=int, default=5)
@@ -204,30 +187,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
     device = torch.device(args.device)
 
-    # Define perturbation ranges for each noise type
     tasks = {
-        "feature": [round(v, 2) for v in np.linspace(0.0, 0.3, 10)],  # Gaussian noise std
-        "edge":    [round(v, 2) for v in np.linspace(0.0, 0.6, 10)],  # Dropout ratio
-        "target":  [round(v, 2) for v in np.linspace(0.0, 0.3, 10)],  # Label noise std
+        "feature": [round(v, 2) for v in np.linspace(0.0, 0.3, 10)],
+        "edge":    [round(v, 2) for v in np.linspace(0.0, 0.6, 10)],
+        "target":  [round(v, 2) for v in np.linspace(0.0, 0.3, 10)],
     }
 
-    # Dictionary to store results for summary visualization
     results_dict = {}
-
     for noise_type, levels in tasks.items():
         print(f"\n===== Running robustness test: {noise_type} noise =====")
-        
-        # Run experiment
         results = run_robustness_experiment(noise_type, levels, device, args)
-        
-        # Save CSV results
         save_results_csv(results, noise_type)
-
-        # Store for combined plot
+        # plot_tradeoff_scatter(noise_type, levels, results)
         results_dict[noise_type] = (levels, results)
 
-    # Plot all noise results together (line + uncertainty)
     plot_results_combined(results_dict)
-
     print("\n✓ Robustness evaluation complete.")
-

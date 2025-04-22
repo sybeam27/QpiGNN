@@ -7,6 +7,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import csv
+import seaborn as sns
 
 sys.path.append('..')
 from utills.model import GQNN, GQNNLoss
@@ -90,7 +91,7 @@ def save_results_to_csv(results, save_path="sensitivity/sensitivity_results.csv"
             writer.writerow([tc, lam, picp, mpiw])
     print(f"Saved results to {save_path}")
 
-def plot_sensitivity_matrix(results, target_coverages, lambdas):
+def line_plot_sensitivity_matrix(results, target_coverages, lambdas):
     os.makedirs("sensitivity/figs", exist_ok=True)
 
     picp_matrix = np.array([[results[(tc, lam)][0] for lam in lambdas] for tc in target_coverages])
@@ -98,7 +99,8 @@ def plot_sensitivity_matrix(results, target_coverages, lambdas):
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
 
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
+    # colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
+    colors = sns.color_palette('muted')
     linestyles = ['-', '--', '-.', ':', (0, (3, 1, 1, 1))]  # 다양한 패턴
 
     for i, tc in enumerate(target_coverages):
@@ -113,6 +115,7 @@ def plot_sensitivity_matrix(results, target_coverages, lambdas):
     # PICP subplot
     axes[0].set_ylabel("PICP (%)", fontsize=12)
     axes[0].set_title("PICP vs. Lambda", fontsize=13)
+    # axes[0].set_ylim(0.7, 1.05)
 
     # MPIW subplot
     axes[1].set_xlabel("Lambda (Width Penalty)", fontsize=12)
@@ -131,7 +134,51 @@ def plot_sensitivity_matrix(results, target_coverages, lambdas):
     plt.savefig(path)
     print(f"Saved: {path}")
     plt.close()
-    
+
+def plot_sensitivity_matrix(results, target_coverages, lambdas):
+    os.makedirs("sensitivity/figs", exist_ok=True)
+
+    picp_matrix = np.array([[results[(tc, lam)][0] for lam in lambdas] for tc in target_coverages])
+    mpiw_matrix = np.array([[results[(tc, lam)][1] for lam in lambdas] for tc in target_coverages])
+
+    bar_width = 0.15
+    x = np.arange(len(lambdas))
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=False)
+
+    # colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
+    colors = sns.color_palette('muted')
+
+    # --- PICP Bar Plot ---
+    for i, tc in enumerate(target_coverages):
+        axes[0].bar(x + i * bar_width, picp_matrix[i], width=bar_width, color=colors[i], label=f"Target={tc}")
+
+    axes[0].set_title("PICP vs. Lambda", fontsize=13)
+    axes[0].set_ylabel("PICP", fontsize=12)
+    axes[0].set_xticks(x + bar_width * (len(target_coverages) - 1) / 2)
+    axes[0].set_xticklabels([f"{lam:.2f}" for lam in lambdas])
+    axes[0].legend(title="Target Coverage")
+    axes[0].grid(True)
+
+    # --- MPIW Bar Plot ---
+    for i, tc in enumerate(target_coverages):
+        axes[1].bar(x + i * bar_width, mpiw_matrix[i], width=bar_width, color=colors[i], label=f"Target={tc}")
+
+    axes[1].set_title("MPIW vs. Lambda", fontsize=13)
+    axes[1].set_ylabel("MPIW", fontsize=12)
+    axes[1].set_xticks(x + bar_width * (len(target_coverages) - 1) / 2)
+    axes[1].set_xticklabels([f"{lam:.2f}" for lam in lambdas])
+    axes[1].legend(title="Target Coverage")
+    axes[1].grid(True)
+
+    # fig.suptitle("Sensitivity of QpiGNN to Width Penalty (Lambda)", fontsize=14)
+    # fig.tight_layout(rect=[0, 0, 1, 0.95])
+
+    path = "sensitivity/figs/sensitivity_combined_bar.png"
+    plt.savefig(path)
+    print(f"Saved: {path}")
+    plt.close()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs", type=int, default=5)
@@ -142,8 +189,10 @@ if __name__ == "__main__":
     device = torch.device(args.device)
 
     target_coverages = [0.80, 0.85, 0.90, 0.95]
-    lambda_factors = [0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0]
+    lambda_factors = np.linspace(0.1, 0.7, num=10).round(2).tolist()
 
     results = run_sensitivity_experiment(target_coverages, lambda_factors, device, args)
     save_results_to_csv(results)
+    
     plot_sensitivity_matrix(results, target_coverages, lambda_factors)
+    line_plot_sensitivity_matrix(results, target_coverages, lambda_factors)

@@ -155,18 +155,18 @@ def plot_radar_chart_with_values(df, metric='PICP'):
         ax.plot(angles, values, marker='o', label=source, color=color_map[source])
         ax.fill(angles, values, alpha=0.1, color=color_map[source])
 
-        # Annotate values
-        for angle, val in zip(angles, values):
-            ax.text(angle, val + 0.02, f"{val:.2f}", ha='center', va='bottom', fontsize=9, color=color_map[source])
+        # # Annotate values
+        # for angle, val in zip(angles, values):
+        #     ax.text(angle, val + 0.02, f"{val:.2f}", ha='center', va='bottom', fontsize=9, color=color_map[source])
 
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(categories, fontsize=11)
-    ax.set_title(f"{metric} Radar Chart", fontsize=14, pad=20)
+    ax.set_xticklabels(categories, fontsize=15)
+    ax.set_title(f"{metric} Radar Chart", fontsize=14, pad=24)
     ax.set_ylim(0, 1.1 if metric == 'PICP' else None)
     ax.grid(True)
 
     # Legend
-    ax.legend(loc='upper right', bbox_to_anchor=(1.1, 1.1), fontsize=10)
+    ax.legend(loc='upper right', bbox_to_anchor=(1.1, 1.1), fontsize=13)
 
     # Save and show
     os.makedirs("general/figs", exist_ok=True)

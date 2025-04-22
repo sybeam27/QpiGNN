@@ -596,6 +596,11 @@ def evaluate_model_performance(preds_low, preds_upper, targets, target=0.9):
                          np.where(targets > preds_upper, targets - preds_upper, 0))
     winkler = np.mean(interval_width + 2 * alpha * penalties)
     
+    # Winkler Score (아래로 수정해야함,,)
+    # penalties = np.where(targets < preds_low, preds_low - targets,
+    #                     np.where(targets > preds_upper, targets - preds_upper, 0))
+    # winkler = np.mean(interval_width + (2 / alpha) * penalties)
+    
     # MCT (Modified Coverage Tradeoff): 구간 너비와 커버리지 차이의 곱
     mct = interval_width * abs(picp - target)
     

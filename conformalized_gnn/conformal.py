@@ -1,5 +1,9 @@
 import numpy as np
 import torch
+import sys
+sys.path.append('..')
+from utills.function import sort_by_y
+import matplotlib.pyplot as plt
 
 def tps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     cal_scores = 1-cal_smx[np.arange(n),cal_labels]
@@ -83,7 +87,6 @@ def threshold(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     cov = prediction_sets[np.arange(prediction_sets.shape[0]),val_labels].mean()
     eff = np.sum(prediction_sets)/len(prediction_sets)
     return prediction_sets, cov, eff
-
 
 def run_conformal_classification(pred, data, n, alpha, score = 'aps', 
                                  calib_eval = False, validation_set = False, 
@@ -249,7 +252,7 @@ def run_conformal_regression(pred, data, n, alpha,
         "MPE": mpe,
         "Sharpness": sharpness,
         "WS": winkler
-        }
+        }    
     
     if return_prediction_sets:
         return cov_all, eff_all, pred_set_all, val_labels_all, idx_all

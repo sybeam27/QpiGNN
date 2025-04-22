@@ -162,7 +162,7 @@ def plot_results_combined(results_dict):
             fmt='s--', color='tab:red', label="MPIW", capsize=3, alpha=0.9
         )
         ax2.set_ylabel("MPIW (↓)", size = 11)
-        ax1.set_ylim(0.1, 2.05)
+        ax2.set_ylim(0.1, 2.05)
         ax2.tick_params(axis='y')
 
         # 공통 X축 및 제목

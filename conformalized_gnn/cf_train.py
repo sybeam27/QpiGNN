@@ -11,6 +11,7 @@ import copy
 import os
 import pickle
 import sys
+sys.path.append('..')
 from utills.function import generate_graph_data, generate_noisy_graph_data, load_county_graph_data, load_twitch_graph_data, \
             load_wiki_graph_data, load_trans_graph_data, create_ba_graph_pyg, create_er_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg
      
@@ -639,9 +640,9 @@ def main(args):
             result_this_run['conf_gnn']['eff_valid'] = run_conformal_regression(best_pred, data, n, alpha, validation_set = True)[1]
             
             # 추가한 평가 코드
-            print('-' * 40, f'CF-GNN: {args.dataset} Train Evaluation... ', '-' * 40)
-            result_this_run['train_metrics'] = run_conformal_regression(best_pred, data, n, alpha, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction, 
-                                                                        train_set=True, evaluate=True, target = 1-alpha)
+            # print('-' * 40, f'CF-GNN: {args.dataset} Train Evaluation... ', '-' * 40)
+            # result_this_run['train_metrics'] = run_conformal_regression(best_pred, data, n, alpha, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction, 
+            #                                                             train_set=True, evaluate=True, target = 1-alpha)
             print('-' * 40, f'CF-GNN: {args.dataset} Test Evaluation... ', '-' * 40)
             result_this_run['test_metrics'] = run_conformal_regression(best_pred, data, n, alpha, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction, 
                                                                        evaluate=True, target = 1-alpha) 
@@ -654,7 +655,6 @@ def main(args):
     if not args.not_save_res:
         print('Saving results to', './pred/CF-GNN/' + name +'.pkl')
         with open('./pred/CF-GNN/' + name +'.pkl', 'wb') as f:
-            pickle.dump(tau2res, f)
-        
-        
+            pickle.dump(tau2res, f)    
+
 main(args)

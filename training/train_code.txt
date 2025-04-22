@@ -76,3 +76,25 @@ python ablation.py --dataset "BA" --model GQNN --pdf False
 python ablation.py --dataset "ER" --model GQNN --pdf False 
 python ablation.py --dataset "grid" --model GQNN --pdf False
 python ablation.py --dataset "tree" --model GQNN --pdf False 
+
+# another model
+python train.py --dataset "basic" --model "MC" --target_coverage 0.9 --pdf True
+python train.py --dataset "gaussian" --model "MC" --target_coverage 0.9 --pdf True
+python train.py --dataset "uniform" --model "MC" --target_coverage 0.9 --pdf True
+python train.py --dataset "outlier" --model "MC" --target_coverage 0.9 --pdf True
+python train.py --dataset "edge" --model "MC" --target_coverage 0.9 --pdf True
+python train.py --dataset "BA" --model "MC" --target_coverage 0.9 --pdf True
+python train.py --dataset "ER" --model "MC" --target_coverage 0.9 --pdf True
+python train.py --dataset "grid" --model "MC" --target_coverage 0.9 --pdf True
+python train.py --dataset "tree" --model "MC" --target_coverage 0.9 --pdf True
+
+python train.py --dataset "education" --model "MC" --target_coverage 0.9 --device "cuda:1"
+python train.py --dataset "election" --model "MC" --target_coverage 0.9 --device "cuda:1"
+python train.py --dataset "income" --model "MC" --target_coverage 0.9 --device "cuda:1"
+python train.py --dataset "unemployment" --model "MC" --target_coverage 0.9 --device "cuda:1"
+python train.py --dataset "PTBR" --model "MC" --target_coverage 0.9 --device "cuda:1"
+python train.py --dataset "chameleon" --model "MC" --target_coverage 0.9 --device "cuda:1"
+python train.py --dataset "crocodile" --model "MC" --target_coverage 0.9 --device "cuda:1"
+python train.py --dataset "squirrel" --model "MC" --target_coverage 0.9 --device "cuda:1"
+python train.py --dataset "Anaheim" --model "MC" --target_coverage 0.9 --device "cuda:1"
+python train.py --dataset "ChicagoSketch" --model "MC" --target_coverage 0.9 --device "cuda:1"

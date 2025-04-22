@@ -411,7 +411,9 @@ for run in tqdm(range(args.runs)):
 
         test_low_preds = mean_preds - t * std_preds  # 95% 신뢰구간 하한
         test_upper_preds = mean_preds + t * std_preds  # 95% 신뢰구간 상한
-        test_targets = test_data.y.cpu().numpy()
+        # test_targets = test_data.y.cpu().numpy()
+        test_targets = test_data.y.view(-1).cpu().numpy()
+    
         test_eval = evaluate_model_performance(test_low_preds, test_upper_preds, test_targets, target=args.target_coverage)
         result_this_run['test_metrics'] = test_eval
         

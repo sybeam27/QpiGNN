@@ -12,6 +12,6 @@ analysis/sensitivity/
 analysis/lambda/
 analysis/generalization/
 analysis/tradeoff/
-analysis/general
+analysis/general/
 
 conformalized_gnn/

@@ -146,54 +146,54 @@ def plot_tradeoff_scatter(noise_type, levels, results):
     plt.close()
 
 def plot_results_combined(results_dict):
-    """각 노이즈 타입에 대한 PICP/MPIW 복합 시각화"""
+    """Dual-axis PICP/MPIW 시각화 (노이즈 타입별)"""
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import os
+
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
     for idx, (noise_type, (levels, results)) in enumerate(results_dict.items()):
-        # Remove noise level == 0.0
+        # level 0.0 제거
         filtered = [(l, r) for l, r in zip(levels, results) if l != 0.0]
         levels, results = zip(*filtered)
-        
-        ax1 = axes[idx]
-        ax2 = ax1.twinx()
 
         picps = [r[1] for r in results]
         mpiws = [r[2] for r in results]
         std_picps = [r[3] for r in results]
         std_mpiws = [r[4] for r in results]
 
-        # PICP 라인
-        l1 = ax1.plot(levels, picps, 'o-', color='tab:blue', label="PICP")[0]
-        ax1.fill_between(levels,
-                         np.array(picps) - np.array(std_picps),
-                         np.array(picps) + np.array(std_picps),
-                         color='tab:blue', alpha=0.2)
+        ax1 = axes[idx]
+        ax2 = ax1.twinx()
 
-        # MPIW 라인
-        l2 = ax2.plot(levels, mpiws, 's--', color='tab:red', label="MPIW")[0]
-        ax2.fill_between(levels,
-                         np.array(mpiws) - np.array(std_mpiws),
-                         np.array(mpiws) + np.array(std_mpiws),
-                         color='tab:red', alpha=0.2)
+        # PICP (왼쪽 축)
+        l1 = ax1.errorbar(levels, picps, yerr=std_picps, fmt='o-', color='tab:blue',
+                          label="PICP", capsize=3, alpha=0.9)
+        ax1.set_ylabel("PICP (↑)", fontsize=12, color='tab:blue')
+        ax1.tick_params(axis='y', labelcolor='tab:blue')
+        # ax1.set_ylim(0.0, 1.05)
 
-        ax1.set_xlabel(NOISE_LABELS[noise_type])
-        ax1.set_ylabel("PICP (↑)", size= 12)
-        ax2.set_ylabel("MPIW (↓)", size= 12)
-        ax1.set_title(f"{noise_type.capitalize()} Noise", size=15)
+        # MPIW (오른쪽 축)
+        l2 = ax2.errorbar(levels, mpiws, yerr=std_mpiws, fmt='s--', color='tab:red',
+                          label="MPIW", capsize=3, alpha=0.9)
+        ax2.set_ylabel("MPIW (↓)", fontsize=12, color='tab:red')
+        ax2.tick_params(axis='y', labelcolor='tab:red')
+        ax2.set_ylim(0.0, 2.05)
+
+        ax1.set_xlabel(NOISE_LABELS[noise_type], fontsize=12)
+        ax1.set_title(f"{noise_type.capitalize()} Noise", fontsize=15)
         ax1.grid(True)
-        
-        # --- 고정된 y축 범위 설정 ---
-        ax1.set_ylim([0.0, 1.05])   # PICP 범위
-        ax2.set_ylim([0.0, 2.05])    # MPIW 범위
 
-        # 범례 병합
-        ax1.legend(handles=[l1, l2], loc='upper right')
+        # 공통 범례
+        lines = l1[0], l2[0]
+        labels = [line.get_label() for line in lines]
+        ax1.legend(lines, labels, loc='upper right', fontsize=10)
 
     plt.tight_layout()
     os.makedirs("robust/figs", exist_ok=True)
-    out_path = "robust/figs/robustness_all.png"
+    out_path = "robust/figs/robustness_all_dualaxis.png"
     plt.savefig(out_path)
-    print(f"Saved Combined Figure: {out_path}")
+    print(f"Saved Dual-Axis Figure: {out_path}")
     plt.close()
     
 if __name__ == "__main__":
@@ -222,9 +222,6 @@ if __name__ == "__main__":
         
         # Save CSV results
         save_results_csv(results, noise_type)
-
-        # Plot scatter visualization (PICP vs MPIW)
-        plot_tradeoff_scatter(noise_type, levels, results)
 
         # Store for combined plot
         results_dict[noise_type] = (levels, results)

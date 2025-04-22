@@ -111,16 +111,16 @@ def plot_sensitivity_matrix(results, target_coverages, lambdas):
         axes[1].plot(lambdas, mpiw_matrix[i], marker='s', color=color, linestyle=style, label=f"Target={tc}")
 
     # PICP subplot
-    axes[0].set_ylabel("PICP (%)", size =10)
-    axes[0].set_title("PICP vs. Lambda", size = 12)
+    axes[0].set_ylabel("PICP (%)", fontsize=12)
+    axes[0].set_title("PICP vs. Lambda", fontsize=13)
 
     # MPIW subplot
-    axes[1].set_xlabel("Lambda (Width Penalty)", size=10)
-    axes[1].set_ylabel("MPIW", size-10)
-    axes[1].set_title("MPIW vs. Lambda", size=12)
+    axes[1].set_xlabel("Lambda (Width Penalty)", fontsize=12)
+    axes[1].set_ylabel("MPIW", fontsize=12)
+    axes[1].set_title("MPIW vs. Lambda", fontsize=13)
 
     # 범례 (하단 subplot에만 넣고 하나로 통합)
-    axes[1].legend(title="Target Coverage", size = 10)
+    axes[1].legend(title="Target Coverage", fontsize=10, title_fontsize=11)
 
     # 그리드와 레이아웃 정리
     for ax in axes:

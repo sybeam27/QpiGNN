@@ -207,6 +207,38 @@ class GQNN(torch.nn.Module):
             
             return pred_low, pred_upper
          
+class GQNNLoss(nn.Module):
+    def __init__(self, target_coverage=0.9, lambda_factor=0.1):
+        super().__init__()
+        self.target_coverage = target_coverage
+        self.lf = lambda_factor
+
+    def forward(self, preds_low, preds_upper, target):
+        # 폭 계산
+        diffs = (preds_upper - preds_low) / 2
+        width_loss = self.lf * 2 * diffs.mean()
+
+        # 커버리지 밖 위반 거리 계산
+        below_violation = torch.relu(preds_low - target)   # y_i < lower
+        above_violation = torch.relu(target - preds_upper) # y_i > upper
+        total_violation = below_violation + above_violation
+
+        # 위반된 샘플만 선택
+        is_violated = (target < preds_low) | (target > preds_upper)
+        violation_count = is_violated.float().sum()
+
+        # 평균 위반 거리 (구간 밖 샘플에 대해만)
+        if violation_count > 0:
+            mean_violation = (total_violation * is_violated.float()).sum() / violation_count
+        else:
+            mean_violation = torch.tensor(0.0, device=target.device)
+
+        covered = (preds_low <= target) & (target <= preds_upper)
+        current_coverage = covered.float().mean()
+        coverage_penalty = (self.target_coverage - current_coverage) ** 2
+
+        return mean_violation + coverage_penalty + width_loss
+
 # class GQNNLoss(nn.Module):
 #     def __init__(self, target_coverage=0.9, lambda_factor=0.1):
 #         super().__init__()
@@ -237,41 +269,6 @@ class GQNN(torch.nn.Module):
         
 #         # 최종 손실: 샘플 손실 + 커버리지 패널티 + 폭 패널티
 #         return mean_sample_loss + coverage_penalty + width_loss
-
-class GQNNLoss(nn.Module):
-    def __init__(self, target_coverage=0.9, lambda_factor=0.1):
-        super().__init__()
-        self.target_coverage = target_coverage
-        self.lf = lambda_factor
-
-    def forward(self, preds_low, preds_upper, target):
-        # 폭 계산
-        diffs = (preds_upper - preds_low) / 2
-        width_loss = self.lf * 2 * diffs.mean()
-
-        # 커버리지 밖 위반 거리 계산
-        below_violation = torch.relu(preds_low - target)   # y_i < lower
-        above_violation = torch.relu(target - preds_upper) # y_i > upper
-        total_violation = below_violation + above_violation
-
-        # 위반된 샘플만 선택
-        is_violated = (target < preds_low) | (target > preds_upper)
-        violation_count = is_violated.float().sum()
-
-        # 평균 위반 거리 (구간 밖 샘플에 대해만)
-        if violation_count > 0:
-            mean_violation = (total_violation * is_violated.float()).sum() / violation_count
-        else:
-            mean_violation = torch.tensor(0.0, device=target.device)
-
-        # coverage 비율과 목표 coverage 간의 차이
-        covered = (preds_low <= target) & (target <= preds_upper)
-        current_coverage = covered.float().mean()
-        coverage_penalty = (self.target_coverage - current_coverage) ** 2
-
-        # 최종 손실: unified coverage loss + width penalty
-        return mean_violation + coverage_penalty + width_loss
-
 
 # class GQNNLoss2(nn.Module): 
 #     def __init__(self, lambda_width=0.1, target_coverage=0.9, beta=10.0):

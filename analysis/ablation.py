@@ -214,7 +214,7 @@ def save_prediction_plots(phase, x, y, low, upper, true_y, args, color, config_n
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     with PdfPages(new_pdf) as pdf:
-        fig, axes = plt.subplots(1, 2, figsize=(16, 4))
+        fig, axes = plt.subplots(2, 1, figsize=(16, 4))
         plt.suptitle(f"Ablation: {config_name}, Dataset: {args.dataset}, Time: {timestamp} ({phase})", fontsize=12, fontweight='bold')
         axes[0].scatter(range(len(x_st)), y_st, alpha=0.3, color='blue', s=15)
         axes[0].fill_between(range(len(x_st)), low_r, upper_r, color=color, alpha=0.5)

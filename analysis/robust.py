@@ -134,7 +134,7 @@ def plot_tradeoff_scatter(noise_type, levels, results):
     plt.close()
 
 def plot_results_combined(results_dict):
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 
     for idx, (noise_type, (levels, results)) in enumerate(results_dict.items()):
         # 0.0 레벨 제거
@@ -152,8 +152,8 @@ def plot_results_combined(results_dict):
             levels, picps, yerr=std_picps,
             fmt='o-', color='tab:blue', label="PICP", capsize=3, alpha=0.9
         )
-        ax1.set_ylabel("PICP (↑)", size = 11)
-        ax1.set_ylim(0.8, 1.05)
+        ax1.set_ylabel("PICP", size = 11)
+        ax1.set_ylim(0.85, 1.05)
         ax1.tick_params(axis='y')
 
         # MPIW (오른쪽 y축)
@@ -161,13 +161,13 @@ def plot_results_combined(results_dict):
             levels, mpiws, yerr=std_mpiws,
             fmt='s--', color='tab:red', label="MPIW", capsize=3, alpha=0.9
         )
-        ax2.set_ylabel("MPIW (↓)", size = 11)
-        ax2.set_ylim(0.5, 2.05)
+        ax2.set_ylabel("MPIW", size = 11)
+        ax2.set_ylim(0.8, 2.05)
         ax2.tick_params(axis='y')
 
         # 공통 X축 및 제목
         ax1.set_xlabel(NOISE_LABELS[noise_type])
-        ax1.set_title(f"{noise_type.capitalize()} Noise")
+        ax1.set_title(f"{noise_type.capitalize()} Noise", size=13)
         ax1.grid(True)
 
         # 범례 추가 (ax1 기준으로만 처리)

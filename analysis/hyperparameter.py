@@ -97,7 +97,7 @@ def line_plot_sensitivity_matrix(results, target_coverages, lambdas):
     picp_matrix = np.array([[results[(tc, lam)][0] for lam in lambdas] for tc in target_coverages])
     mpiw_matrix = np.array([[results[(tc, lam)][1] for lam in lambdas] for tc in target_coverages])
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 4), sharex=True)
 
     # colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
     colors = sns.color_palette('muted')
@@ -113,17 +113,18 @@ def line_plot_sensitivity_matrix(results, target_coverages, lambdas):
         axes[1].plot(lambdas, mpiw_matrix[i], marker='s', color=color, linestyle=style, label=f"Target={tc}")
 
     # PICP subplot
-    axes[0].set_ylabel("PICP (%)", fontsize=12)
+    axes[1].set_xlabel("Lambda", fontsize=11)
+    axes[0].set_ylabel("PICP (%)", fontsize=11)
     axes[0].set_title("PICP vs. Lambda", fontsize=13)
     # axes[0].set_ylim(0.7, 1.05)
 
     # MPIW subplot
-    axes[1].set_xlabel("Lambda (Width Penalty)", fontsize=12)
-    axes[1].set_ylabel("MPIW", fontsize=12)
+    axes[1].set_xlabel("Lambda", fontsize=11)
+    axes[1].set_ylabel("MPIW", fontsize=11)
     axes[1].set_title("MPIW vs. Lambda", fontsize=13)
 
     # 범례 (하단 subplot에만 넣고 하나로 통합)
-    axes[1].legend(title="Target Coverage", fontsize=10, title_fontsize=11)
+    axes[1].legend(title="Target Coverage", fontsize=11, title_fontsize=12)
 
     # 그리드와 레이아웃 정리
     for ax in axes:
@@ -144,7 +145,7 @@ def plot_sensitivity_matrix(results, target_coverages, lambdas):
     bar_width = 0.15
     x = np.arange(len(lambdas))
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=False)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 4), sharex=False)
 
     # colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
     colors = sns.color_palette('muted')
@@ -154,10 +155,10 @@ def plot_sensitivity_matrix(results, target_coverages, lambdas):
         axes[0].bar(x + i * bar_width, picp_matrix[i], width=bar_width, color=colors[i], label=f"Target={tc}")
 
     axes[0].set_title("PICP vs. Lambda", fontsize=13)
-    axes[0].set_ylabel("PICP", fontsize=12)
+    axes[0].set_ylabel("PICP", fontsize=11)
     axes[0].set_xticks(x + bar_width * (len(target_coverages) - 1) / 2)
     axes[0].set_xticklabels([f"{lam:.2f}" for lam in lambdas])
-    axes[0].legend(title="Target Coverage")
+    axes[0].legend(title="Target Coverage", fontsize =11)
     axes[0].grid(True)
 
     # --- MPIW Bar Plot ---
@@ -165,10 +166,10 @@ def plot_sensitivity_matrix(results, target_coverages, lambdas):
         axes[1].bar(x + i * bar_width, mpiw_matrix[i], width=bar_width, color=colors[i], label=f"Target={tc}")
 
     axes[1].set_title("MPIW vs. Lambda", fontsize=13)
-    axes[1].set_ylabel("MPIW", fontsize=12)
+    axes[1].set_ylabel("MPIW", fontsize=11)
     axes[1].set_xticks(x + bar_width * (len(target_coverages) - 1) / 2)
     axes[1].set_xticklabels([f"{lam:.2f}" for lam in lambdas])
-    axes[1].legend(title="Target Coverage")
+    axes[1].legend(title="Target Coverage", fontsize=11)
     axes[1].grid(True)
 
     # fig.suptitle("Sensitivity of QpiGNN to Width Penalty (Lambda)", fontsize=14)

@@ -74,10 +74,10 @@ def plot_tradeoff(df, tau):
     plt.plot(df['lambda'], df['MPIW'], 's--', label="MPIW", color='tab:red')
     plt.fill_between(df['lambda'], df['MPIW'] - df['std_MPIW'], df['MPIW'] + df['std_MPIW'], color='tab:red', alpha=0.2)
 
-    plt.xlabel("Lambda ($\\lambda$)", size = 10)
-    plt.ylabel("Metric", size = 10)
-    plt.title(f"Coverage–Width Trade-off (τ = {tau})", size=12)
-    plt.legend(fontsize = 10)
+    # plt.xlabel("Lambda ($\\lambda$)", size = 10)
+    plt.ylabel("Metric", size = 11)
+    plt.title(f"PCIP-MPIW Trade-off ({tau})", size=13)
+    plt.legend(fontsize = 11)
     plt.grid(True)
     plt.tight_layout()
 

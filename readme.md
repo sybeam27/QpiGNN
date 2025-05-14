@@ -58,6 +58,8 @@ python train.py --dataset <dataset name> --model <model name> --target_coverage 
 ## Thanks to
 We extend our gratitude to the authors of the following libraries for generously sharing their source code and dataset:
 [MUSAE](https://github.com/benedekrozemberczki/MUSAE),
+[SQR](https://github.com/facebookresearch/SingleModelUncertainty),
+[RQR](https://github.com/TPouplin/RQR/tree/main),
 [CF-GNN](https://github.com/snap-stanford/conformalized-gnn)
 
 Your contributions are greatly appreciated.

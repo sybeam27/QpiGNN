@@ -1,5 +1,6 @@
 # Quantile-free Prediction Interval GNN
 paper : QpiGNN: Quantile-Free Uncertainty Quantification in Graph Neural Networks
+
 repo : https://anonymous.4open.science/r/QpiGNN-11614
 
 ![methodology](./figure/GpiGNN_framework.jpg)
@@ -34,10 +35,8 @@ This will set up the environment required to run the codebase.
 ## Datasets
 Below are the details and download links for real-world datasets used in our experiments:
 
-### Power Consumption 
-
 ### U.S. County-Level Datasets (Education, Election, Income, Unemployment)
-This dataset are constructed from county-level U.S. maps, using adjacency information derived from geographic boundaries. Node attributes include socioeconomic indicators, and targets reflect either vote shares or demographic statistics. The base topology and election outcomes were obtained from an open [(GitHub)](https://github.com/tonmcg/), while additional attributes were sourced from the U.S. Department of Agriculture Economic Research Service. [(Download)](https://www.ers.usda.gov/data-products/county-level-data-sets/)
+This dataset are constructed from county-level U.S. maps, using adjacency information derived from geographic boundaries. Node attributes include socioeconomic indicators, and targets `reflect either vote shares or demographic statistics. The base topology and election outcomes were obtained from an open [(GitHub)](https://github.com/tonmcg/), while additional attributes were sourced from the U.S. Department of Agriculture Economic Research Service. [(Download)](https://www.ers.usda.gov/data-products/county-level-data-sets/)
 
 ### Wikipedia & Twitch Graphs (Chameleon, Squirrel, Crocodile, PTBR)
 This dataset were collected from the MUSAE project, which provides temporal and social graphs annotated with node features and continuous targets. These datasets are widely used for benchmarking node regression in non-homophilous graphs. [(Download)](https://github.com/benedekrozemberczki/MUSAE)

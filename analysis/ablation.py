@@ -14,7 +14,7 @@ import numpy as np
 from itertools import product
 
 sys.path.append('..')
-from utills.function import (
+from utils.function import (
     set_seed, generate_graph_data, generate_noisy_graph_data,
     load_county_graph_data, load_twitch_graph_data,
     load_wiki_graph_data, load_trans_graph_data,

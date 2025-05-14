@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import csv
 
 sys.path.append('..')
-from utills.model import GQNN, GQNNLoss
-from utills.function import create_er_graph_pyg, split_graph_data, normalize
+from utils.model import GQNN, GQNNLoss
+from utils.function import create_er_graph_pyg, split_graph_data, normalize
 
 # ---------------- Evaluation ---------------- #
 def evaluate_model_performance(preds_low, preds_upper, targets, target=0.9):

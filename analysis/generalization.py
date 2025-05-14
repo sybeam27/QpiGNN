@@ -6,8 +6,8 @@ import pandas as pd
 import torch.optim as optim
 
 sys.path.append('..')
-from utills.model import GQNN, GQNNLoss
-from utills.function import (
+from utils.model import GQNN, GQNNLoss
+from utils.function import (
     set_seed, generate_graph_data, create_er_graph_pyg, create_ba_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg,
     split_graph_data, normalize, evaluate_model_performance
 )

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import sys
 sys.path.append('..')
-from utills.function import sort_by_y
+from utils.function import sort_by_y
 import matplotlib.pyplot as plt
 
 def tps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):

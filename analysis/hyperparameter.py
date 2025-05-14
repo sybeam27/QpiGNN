@@ -10,8 +10,8 @@ import csv
 import seaborn as sns
 
 sys.path.append('..')
-from utills.model import GQNN, GQNNLoss
-from utills.function import (
+from utils.model import GQNN, GQNNLoss
+from utils.function import (
     generate_graph_data, create_tree_graph_pyg, create_er_graph_pyg, split_graph_data, normalize, 
 )
 

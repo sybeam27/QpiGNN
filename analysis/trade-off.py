@@ -6,8 +6,8 @@ import torch
 import matplotlib.pyplot as plt
 
 sys.path.append('..')
-from utills.model import GQNN, GQNNLoss
-from utills.function import (
+from utils.model import GQNN, GQNNLoss
+from utils.function import (
     create_er_graph_pyg, split_graph_data, normalize, evaluate_model_performance
 )
 

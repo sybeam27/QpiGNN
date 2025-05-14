@@ -5,6 +5,8 @@ bf/
 
 training/pred/
 training/pred (0401)/
+training/results_check.ipynb
+training/training_qa.ipynb
 
 analysis/ablation/
 analysis/robust/
@@ -14,3 +16,4 @@ analysis/tradeoff/
 analysis/general/
 
 conformalized_gnn/
+utils/__pycache__/

@@ -30,7 +30,7 @@ from torch_geometric.nn import SAGEConv, GATConv, GCNConv, GraphSAGE
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from torch_geometric.transforms import RandomNodeSplit
-from utills.function import augment_features
+from utils.function import augment_features
 
 class GQNN_R(nn.Module):
     def __init__(self, in_dim, hidden_dim):

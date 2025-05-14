@@ -12,7 +12,7 @@ import wandb
 import pickle
 import sys 
 sys.path.append('..')
-from utills.function import generate_graph_data, generate_noisy_graph_data, load_county_graph_data, load_twitch_graph_data, \
+from utils.function import generate_graph_data, generate_noisy_graph_data, load_county_graph_data, load_twitch_graph_data, \
             load_wiki_graph_data, load_trans_graph_data, create_ba_graph_pyg, create_er_graph_pyg, create_grid_graph_pyg, create_tree_graph_pyg
             
 from torch_geometric.logging import log

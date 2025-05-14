@@ -16,8 +16,3 @@ analysis/tradeoff/
 analysis/general/
 
 conformalized_gnn/
-<<<<<<< HEAD
-check/
-=======
-utils/__pycache__/
->>>>>>> 859a95416fb22dd4da2015045a3de2f76fb7efda
